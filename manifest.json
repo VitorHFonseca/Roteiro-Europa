@@ -1,0 +1,38 @@
+{
+  "name": "Mochilão Europa — Outubro",
+  "short_name": "Europa 🍂",
+  "description": "Roteiro interativo de mochilão pela Europa em outubro",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#09090f",
+  "theme_color": "#09090f",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍂</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "lifestyle"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Roteiro",
+      "short_name": "Roteiro",
+      "description": "Ver o roteiro dia a dia",
+      "url": "./?section=roteiro",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>", "sizes": "any" }]
+    },
+    {
+      "name": "Checklist",
+      "short_name": "Checklist",
+      "description": "Ver checklist de viagem",
+      "url": "./?section=checklist",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>", "sizes": "any" }]
+    }
+  ]
+}

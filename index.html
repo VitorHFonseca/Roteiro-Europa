@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#09090f">
+  <meta name="description" content="Roteiro interativo e completo para mochilão pela Europa em outubro. Roteiro, mapa, orçamento, checklist, frases e muito mais.">
+  <meta name="author" content="VitorHFonseca">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="🍂 Mochilão Europa — Outubro">
+  <meta property="og:description" content="Roteiro interativo para mochilão pela Europa: cidades, trens, orçamento, frases e diário de viagem.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vitorhfonseca.github.io/Roteiro-Europa/">
+
+  <title>🍂 Mochilão Europa — Outubro</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+
+  <!-- Favicon emoji -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍂</text></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+
+  <!-- Indicador de salvamento -->
+  <div class="save-indicator" id="save-indicator">💾 Salvo!</div>
+
+  <!-- Botão scroll to top -->
+  <button class="scroll-top-btn" id="scroll-top-btn" title="Voltar ao topo">↑</button>
+
+  <!-- Botão compartilhar -->
+  <button class="share-btn" id="share-btn" onclick="shareApp()" title="Compartilhar roteiro">🔗</button>
+
+  <!-- ══════════════════════════════ HERO ══════════════════════════════ -->
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-badge">🍂 Mochilão · Outubro · Europa de Trem</div>
+    <h1>Outono na<br><em>Europa</em></h1>
+    <p class="hero-sub">
+      Roteiro completo e interativo — tudo que você marcar, anotar ou montar
+      <strong>fica salvo automaticamente</strong> no seu celular.
+    </p>
+    <div class="route-strip" id="hero-route-strip"></div>
+    <div class="scroll-hint"><span>explorar</span><div class="scroll-dot"></div></div>
+  </section>
+
+  <!-- ══════════════════════════════ NAVEGAÇÃO ══════════════════════════════ -->
+  <nav>
+    <div class="nav-inner">
+      <span class="nav-title">Europa 🍂</span>
+      <button class="nav-btn active" onclick="showSection('roteiro',this)">📅 Roteiro</button>
+      <button class="nav-btn" onclick="showSection('mapa',this)">🗺️ Mapa</button>
+      <button class="nav-btn" onclick="showSection('montador',this)">✏️ Montar</button>
+      <button class="nav-btn" onclick="showSection('paises',this)">🌍 Países</button>
+      <button class="nav-btn" onclick="showSection('trens',this)">🚆 Trens</button>
+      <button class="nav-btn" onclick="showSection('orcamento',this)">💶 Orçamento</button>
+      <button class="nav-btn" onclick="showSection('dicas',this)">💡 Dicas</button>
+      <button class="nav-btn" onclick="showSection('checklist',this)">✅ Checklist</button>
+      <button class="nav-btn" onclick="showSection('mochila',this)">🎒 Mochila <span class="badge-new">NOVO</span></button>
+      <button class="nav-btn" onclick="showSection('moedas',this)">💱 Moedas <span class="badge-new">NOVO</span></button>
+      <button class="nav-btn" onclick="showSection('frases',this)">🗣️ Frases <span class="badge-new">NOVO</span></button>
+      <button class="nav-btn" onclick="showSection('diario',this)">📖 Diário <span class="badge-new">NOVO</span></button>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════ ROTEIRO ══════════════════════════════ -->
+  <div id="roteiro" class="section active">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Roteiro dia a dia</h2>
+      <p>Clique em um dia para expandir atividades e fotos. Marque os dias concluídos e adicione anotações. Tudo fica salvo automaticamente!</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Duração</div><div class="stat-value" id="stat-dias">15</div><div class="stat-sub">dias de aventura</div></div>
+      <div class="stat-card"><div class="stat-label">Cidades</div><div class="stat-value" id="stat-cidades">7</div><div class="stat-sub" id="stat-cidades-sub">Lisboa → Praga</div></div>
+      <div class="stat-card"><div class="stat-label">Custo/pessoa</div><div class="stat-value" id="stat-custo">€1.750</div><div class="stat-sub">sem passagem aérea</div></div>
+      <div class="stat-card"><div class="stat-label">Dias feitos</div><div class="stat-value" id="done-val">0</div><div class="stat-sub" id="done-sub">de 15 dias · 0%</div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-meta"><span>Progresso da viagem</span><span id="pct-text">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+    </div>
+    <div class="days-grid" id="days-container"></div>
+  </div>
+
+  <!-- ══════════════════════════════ MAPA ══════════════════════════════ -->
+  <div id="mapa" class="section" style="padding:0;max-width:100%">
+    <div class="map-header">
+      <div class="gold-line"></div>
+      <h2>Mapa interativo</h2>
+      <p>Cidades do roteiro e todos os destinos disponíveis. Clique nos marcadores para ver detalhes e adicionar/remover do roteiro.</p>
+    </div>
+    <div class="map-container">
+      <svg id="svg-map" viewBox="0 0 1000 580" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="ocean-grad" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stop-color="#0a1628"/>
+            <stop offset="100%" stop-color="#060c18"/>
+          </radialGradient>
+          <filter id="land-shadow" x="-10%" y="-10%" width="120%" height="120%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.5)"/>
+          </filter>
+          <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="rgba(232,201,122,0.7)"/>
+          </marker>
+        </defs>
+
+        <!-- Oceano -->
+        <rect width="1000" height="580" fill="url(#ocean-grad)"/>
+
+        <!-- Grade de latitude -->
+        <g stroke="rgba(100,150,255,0.05)" stroke-width="1" stroke-dasharray="4,8">
+          <line x1="0" y1="88" x2="1000" y2="88"/><line x1="0" y1="176" x2="1000" y2="176"/>
+          <line x1="0" y1="264" x2="1000" y2="264"/><line x1="0" y1="352" x2="1000" y2="352"/>
+          <line x1="0" y1="440" x2="1000" y2="440"/><line x1="0" y1="528" x2="1000" y2="528"/>
+        </g>
+        <!-- Grade de longitude -->
+        <g stroke="rgba(100,150,255,0.04)" stroke-width="1" stroke-dasharray="4,8">
+          <line x1="130" y1="0" x2="130" y2="580"/><line x1="260" y1="0" x2="260" y2="580"/>
+          <line x1="390" y1="0" x2="390" y2="580"/><line x1="520" y1="0" x2="520" y2="580"/>
+          <line x1="650" y1="0" x2="650" y2="580"/><line x1="780" y1="0" x2="780" y2="580"/>
+          <line x1="910" y1="0" x2="910" y2="580"/>
+        </g>
+
+        <!-- Continente Europeu principal -->
+        <path filter="url(#land-shadow)" fill="#1c2340" stroke="#2a3560" stroke-width="1.2" d="
+          M 85,240 C 90,232 98,225 108,220 C 118,215 128,212 138,210 C 145,205 150,198 155,192
+          C 160,186 162,178 160,170 C 165,162 172,156 180,152 C 188,148 196,146 204,145
+          C 210,140 214,134 218,128 C 222,122 224,115 222,108 C 228,102 236,98 244,96
+          C 252,94 260,94 268,96 C 274,90 278,83 280,76 C 282,69 282,62 280,55
+          C 288,50 297,47 306,46 C 315,45 324,46 332,49 C 336,42 338,35 338,28
+          C 338,21 336,14 332,8 C 342,5 352,4 362,5 C 372,6 382,9 390,14
+          C 396,8 404,4 412,2 C 420,0 429,0 437,2 C 444,8 450,15 454,22
+          C 458,29 460,37 459,45 C 468,42 477,41 486,42 C 495,43 504,46 512,51
+          C 516,44 518,37 518,30 C 518,23 516,16 512,10 C 522,6 533,4 543,4
+          C 553,4 563,6 572,10 C 580,16 587,23 592,31 C 597,39 600,48 600,57
+          C 610,53 620,51 630,51 C 640,51 650,53 659,57 C 665,50 669,43 671,35
+          C 673,27 673,19 671,12 C 682,10 693,10 704,12 C 715,14 725,18 734,24
+          C 742,18 751,14 761,12 C 771,10 781,10 791,12 C 800,18 808,25 814,33
+          C 820,41 824,50 825,60 C 835,58 846,58 856,60 C 866,62 876,66 885,72
+          C 892,68 900,65 908,64 C 916,63 924,64 932,67 C 940,73 947,80 952,88
+          C 957,96 960,105 960,114 C 966,112 972,112 978,114 C 984,116 990,120 994,126
+          C 996,133 997,141 995,148 C 993,155 989,162 984,167 C 980,175 978,184 977,193
+          C 976,202 977,211 979,220 C 975,228 970,235 964,241 C 958,247 951,252 944,255
+          C 940,263 937,272 936,281 C 935,290 935,299 937,308 C 932,316 926,323 919,329
+          C 912,335 904,340 896,344 C 892,352 889,361 888,370 C 887,379 887,388 890,397
+          C 884,404 877,410 869,414 C 861,418 852,420 844,419 C 836,413 828,406 821,399
+          C 814,392 808,384 804,376 C 796,374 788,374 780,376 C 772,378 764,382 758,388
+          C 750,386 742,382 735,377 C 728,372 722,366 717,360 C 710,364 703,366 696,366
+          C 689,366 682,364 676,360 C 670,366 663,371 655,374 C 647,377 638,378 630,376
+          C 624,382 617,387 609,390 C 601,393 593,394 585,392 C 579,398 572,403 564,406
+          C 556,409 547,410 539,408 C 532,414 524,418 515,420 C 506,422 497,421 489,418
+          C 484,424 478,429 471,432 C 464,435 456,436 449,434 C 442,440 434,444 426,446
+          C 418,448 409,448 401,445 C 394,451 386,455 377,457 C 368,459 359,459 351,456
+          C 344,462 336,466 327,468 C 318,470 309,469 300,466 C 292,460 285,453 279,445
+          C 273,437 268,428 265,419 C 258,416 251,415 244,416 C 237,417 230,420 224,424
+          C 218,418 213,411 209,403 C 205,395 202,386 201,378 C 194,374 187,372 180,372
+          C 173,372 166,374 160,378 C 154,372 149,365 145,357 C 141,349 138,340 137,332
+          C 130,326 123,322 115,320 C 107,318 99,318 91,320 C 86,313 82,305 79,296
+          C 76,287 75,278 76,269 C 80,260 84,251 85,240 Z"/>
+
+        <!-- Península Ibérica -->
+        <path fill="#1e2842" stroke="#2a3560" stroke-width="1" d="
+          M 112,294 C 118,284 126,276 135,270 C 144,264 154,260 164,258
+          C 172,252 178,245 182,237 C 186,229 188,220 186,212
+          C 196,208 206,206 216,206 C 226,206 236,208 245,212
+          C 252,206 257,199 260,192 C 263,185 264,177 262,170
+          C 272,167 282,166 292,167 C 302,168 311,171 320,176
+          C 326,170 330,163 332,156 C 334,149 334,141 330,135
+          C 338,130 347,127 356,126 C 365,125 374,126 382,129
+          C 388,135 393,142 396,149 C 399,156 400,164 398,172
+          C 406,176 415,178 424,178 C 433,178 442,176 450,172
+          C 455,179 459,186 461,194 C 463,202 463,210 460,218
+          C 467,224 475,228 483,230 C 491,232 499,231 507,228
+          C 511,236 514,244 515,252 C 516,260 515,268 512,276
+          C 518,282 525,287 533,290 C 541,293 549,294 557,292
+          C 560,300 561,308 560,316 C 559,324 556,332 551,339
+          C 556,346 560,353 562,361 C 564,369 564,377 561,385
+          C 554,391 546,395 538,397 C 530,399 522,399 514,396
+          C 508,404 502,411 494,416 C 486,421 477,423 469,422
+          C 462,429 454,434 445,437 C 436,440 427,440 419,437
+          C 412,443 404,447 396,449 C 388,451 379,450 371,446
+          C 364,440 358,432 354,424 C 350,416 348,407 349,399
+          C 342,393 334,389 326,387 C 318,385 310,385 302,387
+          C 296,381 291,373 288,365 C 285,357 284,348 285,340
+          C 279,333 272,328 264,325 C 256,322 248,321 240,322
+          C 234,314 229,305 226,296 C 223,287 222,278 224,270
+          C 218,262 211,256 203,252 C 195,248 186,246 178,247
+          C 172,253 167,260 164,268 C 161,276 160,284 162,292
+          C 155,298 147,302 138,304 C 129,306 120,305 112,302 Z"/>
+
+        <!-- Escandinávia -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="1" d="
+          M 490,8 C 500,5 511,4 521,5 C 531,6 541,9 550,14 C 558,20 565,27 570,35
+          C 575,43 578,52 578,61 C 586,58 594,57 602,58 C 610,59 618,62 625,67
+          C 630,61 633,55 634,48 C 635,41 634,34 631,27 C 640,24 649,22 658,22
+          C 667,22 676,24 685,28 C 692,34 698,41 702,49 C 706,57 708,66 707,74
+          C 715,72 723,71 731,72 C 739,73 747,76 754,81 C 760,76 764,70 766,63
+          C 768,56 768,49 765,43 C 774,40 783,39 792,40 C 801,41 810,44 818,49
+          C 824,56 828,64 830,72 C 832,80 832,89 829,97 C 836,102 844,105 852,106
+          C 860,107 868,106 876,103 C 880,110 883,118 884,126 C 885,134 884,142 881,150
+          C 874,154 867,157 859,158 C 851,159 844,158 837,155 C 832,162 826,168 819,172
+          C 812,176 804,178 797,177 C 791,184 786,192 782,200 C 778,208 776,217 777,226
+          C 770,230 762,232 755,232 C 748,232 740,230 734,226 C 728,232 723,239 719,246
+          C 715,253 713,261 713,269 C 705,270 697,269 690,266 C 683,263 676,258 671,252
+          C 664,256 657,259 650,260 C 643,261 636,260 629,257 C 624,251 620,244 618,237
+          C 616,230 616,222 618,215 C 611,210 603,206 595,204 C 587,202 579,202 571,204
+          C 567,197 564,189 563,181 C 562,173 562,165 565,158 C 558,152 550,148 542,146
+          C 534,144 526,144 518,146 C 513,140 509,133 507,125 C 505,117 505,109 507,101
+          C 500,95 492,90 484,87 C 476,84 467,83 459,84 C 456,76 454,68 454,60
+          C 454,52 456,44 460,37 C 468,27 478,18 490,12 Z"/>
+
+        <!-- Reino Unido -->
+        <path fill="#1e2842" stroke="#2a3560" stroke-width="1" d="
+          M 168,105 C 175,98 183,93 192,90 C 201,87 210,87 219,90
+          C 226,84 231,77 234,69 C 237,61 237,53 234,46
+          C 242,41 251,38 260,37 C 269,36 278,37 287,40
+          C 293,34 297,27 299,19 C 301,11 301,3 298,-4
+          C 307,-8 317,-10 327,-9 C 337,-8 347,-4 355,2
+          C 360,-4 366,-9 373,-12 C 380,-15 387,-15 394,-12
+          C 399,-6 403,1 405,9 C 407,17 407,25 404,32
+          C 412,36 421,38 430,38 C 439,38 448,36 456,32
+          C 460,39 463,47 464,55 C 465,63 464,71 461,79
+          C 468,84 476,87 485,88 C 494,89 503,88 511,85
+          C 514,93 516,101 515,109 C 514,117 511,125 506,132
+          C 512,138 519,143 526,146 C 533,149 540,149 548,147
+          C 550,155 550,163 548,171 C 546,179 542,187 537,193
+          C 530,196 522,197 515,196 C 508,195 501,192 494,187
+          C 489,194 483,200 477,204 C 471,208 464,210 458,208
+          C 452,202 447,195 444,188 C 441,181 440,173 441,166
+          C 434,162 426,159 418,158 C 410,157 402,158 395,161
+          C 390,155 386,148 384,140 C 382,132 382,124 385,117
+          C 378,112 370,108 362,106 C 354,104 346,104 338,107
+          C 333,100 328,93 324,86 C 320,79 317,71 317,63
+          C 309,60 300,59 292,60 C 284,61 276,64 269,69
+          C 264,62 258,56 252,51 C 246,46 239,42 232,40
+          C 226,46 221,53 218,61 C 215,69 214,77 216,85
+          C 209,90 201,93 193,94 C 185,95 177,93 170,89 Z"/>
+
+        <!-- Irlanda -->
+        <path fill="#1e2842" stroke="#2a3560" stroke-width="0.8" d="
+          M 110,132 C 117,124 126,118 136,114 C 146,110 156,109 166,111
+          C 172,118 177,126 180,134 C 183,142 184,151 182,159
+          C 188,165 194,170 201,173 C 208,176 215,177 222,175
+          C 225,183 226,191 225,199 C 224,207 221,215 216,222
+          C 208,226 200,228 192,228 C 184,228 176,226 168,222
+          C 162,228 155,232 148,234 C 141,236 133,235 126,232
+          C 120,225 115,217 112,208 C 109,199 108,190 110,182
+          C 104,176 98,169 94,162 C 90,155 87,147 88,140 Z"/>
+
+        <!-- Islândia -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="0.8" d="
+          M 20,68 C 28,60 38,54 48,51 C 58,48 68,48 78,51
+          C 86,58 93,66 98,75 C 103,84 106,93 106,103
+          C 112,109 119,114 127,117 C 135,120 143,121 151,119
+          C 154,127 155,135 154,143 C 153,151 150,159 144,165
+          C 136,168 128,170 120,169 C 112,168 104,165 97,160
+          C 91,166 84,171 77,174 C 70,177 62,178 55,176
+          C 48,169 43,161 40,153 C 37,145 36,136 38,128
+          C 31,122 24,115 19,107 C 14,99 11,90 12,82 Z"/>
+
+        <!-- Itália (bota) -->
+        <path fill="#1e2842" stroke="#2a3560" stroke-width="1" d="
+          M 494,330 C 500,323 507,317 515,313 C 523,309 531,307 539,308
+          C 546,314 552,321 556,329 C 560,337 562,345 561,354
+          C 568,360 576,365 584,368 C 592,371 600,371 608,368
+          C 613,376 617,384 619,392 C 621,400 621,409 618,417
+          C 611,422 603,425 595,426 C 587,427 579,426 571,422
+          C 566,430 560,437 553,442 C 546,447 539,449 532,448
+          C 526,440 521,431 518,422 C 515,413 514,404 515,395
+          C 508,390 500,386 492,384 C 484,382 476,382 468,384
+          C 464,376 461,368 460,359 C 459,350 460,341 463,333
+          C 469,327 476,322 483,319 C 490,316 498,315 506,317 Z"/>
+
+        <!-- Sicília -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="0.7" d="M 490,452 C 498,446 507,442 516,440 C 525,438 534,439 542,443 C 548,450 553,458 556,467 C 559,476 559,485 557,493 C 549,497 540,499 531,499 C 522,499 514,497 506,493 C 500,486 495,478 492,469 C 489,460 489,452 490,452 Z"/>
+
+        <!-- Grécia / Balcãs -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="0.8" d="
+          M 660,370 C 668,362 677,356 687,352 C 697,348 707,347 717,349
+          C 723,356 728,364 731,372 C 734,380 735,389 733,397
+          C 740,403 748,408 756,411 C 764,414 772,415 780,412
+          C 784,420 787,429 788,438 C 789,447 788,456 785,464
+          C 777,469 769,472 760,473 C 751,474 743,472 735,468
+          C 729,475 722,480 715,483 C 708,486 700,487 693,484
+          C 687,477 682,469 679,461 C 676,453 675,444 677,436
+          C 670,430 662,425 654,422 C 646,419 638,419 630,421
+          C 625,413 622,405 621,396 C 620,387 621,378 625,370
+          C 632,364 640,360 648,358 C 656,356 664,358 672,362 Z"/>
+
+        <!-- Córsega -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="0.6" d="M 444,328 C 449,322 455,318 461,316 C 467,314 473,314 479,317 C 482,324 484,331 483,338 C 482,345 479,352 474,357 C 468,360 461,362 455,361 C 449,360 443,356 439,351 C 437,344 437,337 440,331 Z"/>
+
+        <!-- Sardenha -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="0.6" d="M 442,378 C 448,372 455,368 462,366 C 469,364 476,365 482,369 C 487,376 490,384 490,392 C 490,400 487,408 482,414 C 475,418 468,420 461,419 C 454,418 447,415 442,409 C 438,402 437,394 438,387 Z"/>
+
+        <!-- Finlândia / Báltico -->
+        <path fill="#1c2340" stroke="#2a3560" stroke-width="0.8" d="
+          M 660,60 C 668,52 678,46 688,43 C 698,40 708,40 718,43
+          C 726,50 732,58 736,67 C 740,76 742,86 740,95
+          C 748,99 757,101 766,101 C 775,101 784,99 792,95
+          C 798,103 803,112 806,121 C 809,130 810,140 808,149
+          C 814,155 821,160 829,163 C 837,166 845,166 853,164
+          C 857,172 860,181 861,190 C 862,199 861,208 858,217
+          C 850,221 841,223 833,222 C 825,221 817,218 810,213
+          C 804,220 797,226 789,230 C 781,234 773,236 764,235
+          C 758,241 751,246 744,249 C 737,252 729,253 722,251
+          C 716,257 710,262 703,265 C 696,268 688,269 681,267
+          C 675,261 670,254 667,247 C 664,240 663,232 665,225
+          C 657,220 649,217 641,216 C 633,215 625,216 617,219
+          C 612,213 608,206 606,198 C 604,190 604,182 606,175
+          C 613,169 621,165 629,163 C 637,161 645,161 653,163 Z"/>
+
+        <!-- Labels dos mares e países -->
+        <text x="85" y="520" fill="rgba(100,140,255,0.18)" font-size="11" font-family="DM Mono,monospace" letter-spacing="2">ATLÂNTICO</text>
+        <text x="560" y="555" fill="rgba(100,140,255,0.15)" font-size="10" font-family="DM Mono,monospace" letter-spacing="2">MED I TERRÂNEO</text>
+        <text x="750" y="240" fill="rgba(100,140,255,0.12)" font-size="10" font-family="DM Mono,monospace" letter-spacing="1">MAR BÁLTICO</text>
+        <text x="820" y="310" fill="rgba(100,140,255,0.12)" font-size="9" font-family="DM Mono,monospace" letter-spacing="1">MAR NEGRO</text>
+        <text x="55" y="110" fill="rgba(200,200,255,0.1)" font-size="9" font-family="DM Mono,monospace">Islândia</text>
+        <text x="260" y="55" fill="rgba(200,200,255,0.1)" font-size="9" font-family="DM Mono,monospace">Noruega</text>
+        <text x="620" y="75" fill="rgba(200,200,255,0.1)" font-size="9" font-family="DM Mono,monospace">Finlândia</text>
+        <text x="220" y="175" fill="rgba(200,200,255,0.1)" font-size="8" font-family="DM Mono,monospace">Reino Unido</text>
+
+        <!-- Linhas de rota e marcadores (gerados por JS) -->
+        <g id="route-lines"></g>
+        <g id="city-markers"></g>
+      </svg>
+      <div class="map-tooltip" id="map-tooltip"></div>
+    </div>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gold);box-shadow:0 0 6px #e8c97a88"></div> No roteiro</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#3a3a55;border:1px solid #555"></div> Disponível</div>
+      <div class="legend-item" style="color:var(--muted);font-style:italic">Linha tracejada = rota dos trens</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ MONTADOR ══════════════════════════════ -->
+  <div id="montador" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Monte seu roteiro</h2>
+      <p>Filtre por país, selecione as cidades, ajuste os dias e clique em Confirmar — tudo atualiza e é salvo automaticamente.</p>
+    </div>
+    <div class="builder-layout">
+      <div class="builder-panel">
+        <div class="builder-panel-header">
+          <div><div class="builder-panel-title">🌍 20 cidades disponíveis</div><div class="builder-panel-sub">Filtre por país e clique para adicionar</div></div>
+        </div>
+        <div class="palette-filter" id="palette-filter"></div>
+        <div class="city-palette" id="city-palette"></div>
+      </div>
+      <div class="builder-panel">
+        <div class="builder-panel-header">
+          <div><div class="builder-panel-title">✈️ Seu roteiro</div><div class="builder-panel-sub">Reordene e ajuste os dias</div></div>
+        </div>
+        <div class="route-list" id="route-list"><div class="route-empty">Selecione cidades ao lado →</div></div>
+        <div class="route-footer">
+          <div class="route-stats-text" id="route-stats">Selecione cidades para começar</div>
+          <button class="apply-btn" onclick="applyRoute()">✓ Confirmar Roteiro</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel de IA -->
+    <div class="ai-panel">
+      <div class="ai-panel-header">
+        <div>
+          <div class="ai-panel-title">🤖 Recomendações com IA</div>
+          <div class="ai-panel-sub">Confirme o roteiro e gere dicas personalizadas para outubro com inteligência artificial.</div>
+        </div>
+        <div class="ai-btn-group">
+          <button class="ai-key-btn" onclick="toggleAiKeyForm()">⚙️ API Key</button>
+          <button class="ai-btn" id="ai-btn" onclick="callAI()">✨ Gerar com IA</button>
+        </div>
+      </div>
+      <div class="ai-key-form" id="ai-key-form">
+        <p>Insira sua API Key da Anthropic. Ela fica salva apenas no seu dispositivo, nunca é enviada a nenhum servidor nosso.<br>
+        Obtenha em <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></p>
+        <div class="ai-key-input-row">
+          <input type="password" id="ai-key-input" placeholder="sk-ant-api03-..." autocomplete="off">
+          <button class="ai-key-save-btn" onclick="saveAiKey()">Salvar</button>
+        </div>
+      </div>
+      <div id="ai-content"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ PAÍSES ══════════════════════════════ -->
+  <div id="paises" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Guia dos países</h2>
+      <p>Informações detalhadas de cada destino. Filtre por país e troque cidades do roteiro diretamente aqui.</p>
+    </div>
+    <div class="country-filter" id="country-filter"></div>
+    <div class="countries-grid" id="countries-container"></div>
+  </div>
+
+  <!-- ══════════════════════════════ TRENS ══════════════════════════════ -->
+  <div id="trens" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Transporte por trem</h2>
+      <p>Trajetos do seu roteiro atual. Mude as cidades em ✏️ Montar para ver novas conexões.</p>
+    </div>
+    <div class="pass-card">
+      <div class="pass-header">
+        <div>
+          <div class="pass-title">Eurail Global Pass</div>
+          <p style="font-size:12px;color:var(--muted);margin-top:3px">Para não-europeus (como brasileiros). Viaje em mais de 40 países sem burocracia extra.</p>
+        </div>
+        <div class="pass-badge">Para brasileiros</div>
+      </div>
+      <div class="pass-grid">
+        <div class="info-box"><div class="info-box-label">10 viagens / 2 meses</div><div class="info-box-val">~€385 adulto</div></div>
+        <div class="info-box"><div class="info-box-label">Youth até 27 anos</div><div class="info-box-val">~€290 (−25%)</div></div>
+        <div class="info-box"><div class="info-box-label">Reservas AVE/TGV</div><div class="info-box-val">€3–15 por trecho</div></div>
+        <div class="info-box"><div class="info-box-label">Validade</div><div class="info-box-val">2 meses a partir da ativação</div></div>
+      </div>
+      <a href="https://www.eurail.com/pt" target="_blank" rel="noopener" class="link">↗ Comprar Eurail Pass</a>
+    </div>
+    <div style="margin-bottom:.85rem;font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace">Trajetos do seu roteiro</div>
+    <div class="train-rows" id="trains-container"></div>
+    <div class="tip-box mt-md">
+      <p>💡 Em trens de alta velocidade (AVE, TGV, Eurostar) é <strong>obrigatório</strong> reserva de assento mesmo com Eurail Pass.
+      Reserve em <a href="https://www.thetrainline.com" target="_blank" rel="noopener">thetrainline.com</a>.
+      Trem noturno Lisboa→Madrid (Lusitânia) <strong>economiza uma noite de hostel (~€25)!</strong></p>
+    </div>
+    <div class="mt-md flex-between">
+      <a href="https://www.thetrainline.com" target="_blank" rel="noopener" class="link">↗ thetrainline.com</a>
+      <a href="https://www.eurail.com/pt" target="_blank" rel="noopener" class="link">↗ eurail.com</a>
+      <a href="https://www.rome2rio.com" target="_blank" rel="noopener" class="link">↗ rome2rio.com</a>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ ORÇAMENTO ══════════════════════════════ -->
+  <div id="orcamento" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Orçamento detalhado</h2>
+      <p>Estimativas para outubro de 2025. Altere o roteiro em ✏️ Montar para recalcular automaticamente.</p>
+    </div>
+    <div class="budget-hero">
+      <div class="budget-total" id="budget-total">€1.750</div>
+      <div class="budget-label">estimativa total por pessoa · <span id="budget-days">15 dias</span> · sem passagem aérea</div>
+    </div>
+    <div class="budget-grid">
+      <div class="budget-card"><h3>Distribuição de gastos</h3><div id="budget-bars"></div></div>
+      <div class="budget-card">
+        <h3>Detalhamento</h3>
+        <div class="budget-item"><span class="budget-name">Acomodação (hostels)</span><span class="budget-val" id="bd-hostel">€375</span></div>
+        <div class="budget-item"><span class="budget-name">Alimentação (~€22/dia)</span><span class="budget-val" id="bd-food">€330</span></div>
+        <div class="budget-item"><span class="budget-name">Eurail Pass (Youth)</span><span class="budget-val">€290</span></div>
+        <div class="budget-item"><span class="budget-name">Atrações e museus</span><span class="budget-val" id="bd-mus">€225</span></div>
+        <div class="budget-item"><span class="budget-name">Transporte local</span><span class="budget-val" id="bd-trans">€90</span></div>
+        <div class="budget-item"><span class="budget-name">Reservas trem (AVE/TGV)</span><span class="budget-val">€75</span></div>
+        <div class="budget-item"><span class="budget-name">Seguro viagem</span><span class="budget-val">€50</span></div>
+        <div class="budget-item"><span class="budget-name">eSIM europeu (30 dias)</span><span class="budget-val">€20</span></div>
+        <div class="budget-item"><span class="budget-name">Emergências e misc</span><span class="budget-val">€80</span></div>
+      </div>
+    </div>
+    <div class="budget-card" style="margin-bottom:1.25rem">
+      <h3 style="margin-bottom:1rem">Custo estimado por cidade (por pessoa/dia)</h3>
+      <div class="city-costs" id="city-costs"></div>
+    </div>
+    <div class="budget-card">
+      <h3>Dicas para economizar em outubro</h3>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:.4rem">
+        <div class="activity-item"><div class="activity-dot" style="background:var(--green)"></div><span>Outubro é baixa/média temporada — hostels até 25% mais baratos que julho/agosto</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--green)"></div><span>Lidl, Aldi e Penny para café e lanches — 60% mais barato que cafés turísticos</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--green)"></div><span>Prado e Reina Sofía (Madrid) grátis após 18h30 · Museu Nacional (Copenhague) sempre grátis</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--green)"></div><span>Cartão Wise/Nomad sem IOF: economize ~5,38% em cada compra</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--green)"></div><span>Em Praga, Cracóvia e Budapeste use moeda local — 30-50% mais barato que euros</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ DICAS ══════════════════════════════ -->
+  <div id="dicas" class="section">
+    <div class="section-header"><div class="gold-line"></div><h2>Dicas essenciais</h2><p>Tudo que você precisa saber para o mochilão perfeito em outubro.</p></div>
+    <div class="tips-grid" id="tips-container"></div>
+  </div>
+
+  <!-- ══════════════════════════════ CHECKLIST ══════════════════════════════ -->
+  <div id="checklist" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Checklist de viagem</h2>
+      <p>Marque tudo antes de partir. Progresso: <span id="cl-pct" style="color:var(--gold);font-weight:600">0%</span> — fica salvo no celular!</p>
+    </div>
+    <div class="progress-wrap"><div class="progress-track"><div class="progress-fill" id="cl-prog" style="width:0%"></div></div></div>
+    <div class="checklist-grid" id="checklist-container"></div>
+  </div>
+
+  <!-- ══════════════════════════════ MOCHILA ══════════════════════════════ -->
+  <div id="mochila" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Calculadora de mochila 🎒</h2>
+      <p>Monte sua lista do que levar com controle de peso por categoria. Tudo salvo automaticamente!</p>
+    </div>
+    <div class="pack-progress-card">
+      <div class="pack-progress-header">
+        <span>Peso total estimado</span>
+        <span class="pack-weight-display" id="pack-total-weight">0.00 kg</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="pack-prog" style="width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:5px;font-family:'DM Mono',monospace">
+        <span>0 kg</span><span style="color:var(--green)">ideal: ≤8 kg</span><span>15 kg+</span>
+      </div>
+    </div>
+    <div class="pack-cats" id="pack-cats"></div>
+    <div class="pack-items-grid" id="pack-items"></div>
+    <div class="pack-weight-summary">
+      <h3 style="font-size:13px;font-weight:600;margin-bottom:.75rem">Resumo por categoria</h3>
+      <div class="pack-weight-grid" id="pack-summary"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ MOEDAS ══════════════════════════════ -->
+  <div id="moedas" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Conversor de moedas 💱</h2>
+      <p>Converta valores entre Real e as moedas dos países da sua rota. Cotações de referência 2025.</p>
+    </div>
+    <div class="currency-card">
+      <h3>💱 Converter agora</h3>
+      <div class="currency-grid">
+        <div class="form-group">
+          <div class="form-label">Valor</div>
+          <input class="form-input" id="conv-amount" type="number" value="100" min="0" oninput="updateConverter()">
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:.1rem">
+          <button class="currency-swap" onclick="swapCurrencies()" title="Inverter moedas">⇄</button>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Moeda destino</div>
+          <select class="form-select" id="conv-currency" onchange="updateConverter()">
+            <option value="EUR" selected>🇪🇺 Euro (EUR)</option>
+            <option value="GBP">🇬🇧 Libra (GBP)</option>
+            <option value="CZK">🇨🇿 Coroa Tcheca (CZK)</option>
+            <option value="PLN">🇵🇱 Zloty (PLN)</option>
+            <option value="HUF">🇭🇺 Forint (HUF)</option>
+            <option value="CHF">🇨🇭 Franco Suíço (CHF)</option>
+            <option value="DKK">🇩🇰 Coroa Dinamarquesa (DKK)</option>
+            <option value="SEK">🇸🇪 Coroa Sueca (SEK)</option>
+            <option value="NOK">🇳🇴 Coroa Norueguesa (NOK)</option>
+          </select>
+        </div>
+      </div>
+      <div class="currency-result">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:3px;font-family:'DM Mono',monospace" id="conv-label">BRL → EUR</div>
+          <div class="currency-result-val" id="conv-result">€ 18,70</div>
+        </div>
+        <div class="currency-result-rate" id="conv-rate">R$ 1 ≈ € 0,1869</div>
+      </div>
+      <div class="currency-chips" id="conv-chips"></div>
+    </div>
+    <div class="currency-card">
+      <h3>📊 Referência rápida — quanto vale 1 Euro (€) em Reais:</h3>
+      <div class="rates-grid" id="rates-grid"></div>
+    </div>
+    <div class="currency-card">
+      <h3>💡 Dicas de câmbio para o mochileiro</h3>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-top:.5rem">
+        <div class="activity-item"><div class="activity-dot" style="background:var(--gold)"></div><span>Use <strong>Wise</strong> ou <strong>Nomad</strong> para pagamentos — sem IOF, economize até 5,38%</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--gold)"></div><span>NUNCA aceite "converter em reais" na maquininha — sempre pague na moeda local (DCC é armadilha!)</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--gold)"></div><span>Em Praga, Cracóvia e Budapeste: saque na moeda local em caixas do banco — 30–50% mais barato</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--gold)"></div><span>Câmbio no aeroporto cobra até 15% a mais — evite sempre</span></div>
+        <div class="activity-item"><div class="activity-dot" style="background:var(--gold)"></div><span>Leve €100–200 em espécie para emergências: mercados locais, gorjetas, bagageiros de trem</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ FRASES ══════════════════════════════ -->
+  <div id="frases" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Frases essenciais 🗣️</h2>
+      <p>As frases mais úteis para se virar em qualquer país da Europa. <strong>Toque numa frase para copiar!</strong></p>
+    </div>
+    <div class="phrases-filter" id="phrases-filter"></div>
+    <div class="phrases-grid" id="phrases-grid"></div>
+  </div>
+
+  <!-- ══════════════════════════════ DIÁRIO ══════════════════════════════ -->
+  <div id="diario" class="section">
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Diário de viagem 📖</h2>
+      <p>Registre os momentos especiais. Tudo fica salvo no celular — suas memórias não somem!</p>
+    </div>
+    <div class="diary-header">
+      <div style="font-size:13px;color:var(--muted)" id="diary-count">Nenhuma entrada ainda</div>
+      <button class="diary-add-btn" onclick="toggleDiaryForm()">+ Nova entrada</button>
+    </div>
+    <div class="diary-form" id="diary-form">
+      <h3>✍️ Nova entrada</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Cidade</div>
+          <select class="form-select" id="diary-city-sel"></select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Data</div>
+          <input class="form-input" type="date" id="diary-date">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">Humor do dia</div>
+          <select class="form-select" id="diary-mood">
+            <option value="😍">😍 Incrível</option>
+            <option value="😊" selected>😊 Muito bom</option>
+            <option value="🙂">🙂 Bom</option>
+            <option value="😐">😐 Neutro</option>
+            <option value="😴">😴 Cansativo</option>
+            <option value="🤒">🤒 Difícil</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <div class="form-label">Nota do dia</div>
+          <select class="form-select" id="diary-rating">
+            <option value="5">⭐⭐⭐⭐⭐ Perfeito</option>
+            <option value="4">⭐⭐⭐⭐ Ótimo</option>
+            <option value="3">⭐⭐⭐ Bom</option>
+            <option value="2">⭐⭐ Regular</option>
+            <option value="1">⭐ Difícil</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group full" style="margin-bottom:.75rem">
+        <div class="form-label">Título (opcional)</div>
+        <input class="form-input" id="diary-title" placeholder="Ex: Amanhecer na Ponte Carlos…">
+      </div>
+      <div class="form-group full" style="margin-bottom:.75rem">
+        <div class="form-label">Conte o que aconteceu</div>
+        <textarea class="form-textarea" id="diary-text" placeholder="O que foi especial hoje? Lugares visitados, pessoas, comida, momentos inesquecíveis…"></textarea>
+      </div>
+      <div class="form-group full">
+        <div class="form-label">💸 Gasto do dia (R$)</div>
+        <input class="form-input" id="diary-spent" type="number" placeholder="0.00" min="0" step="0.01">
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="toggleDiaryForm()">Cancelar</button>
+        <button class="btn-save" onclick="saveDiaryEntry()">Salvar entrada</button>
+      </div>
+    </div>
+    <div id="diary-stats-bar" style="display:none" class="diary-stats-bar"></div>
+    <div class="diary-entries" id="diary-entries">
+      <div class="diary-empty"><span class="diary-empty-emoji">📖</span>Nenhuma entrada ainda.<br>Comece a documentar sua aventura!</div>
+    </div>
+  </div>
+
+  <div style="height:6rem"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="./js/data.js"></script>
+  <script src="./js/app.js"></script>
+
+  <noscript>
+    <style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:2rem;background:#09090f;color:#f0eff8;font-family:sans-serif}</style>
+    <p>Este app requer JavaScript para funcionar. Por favor, habilite o JavaScript no seu navegador.</p>
+  </noscript>
+</body>
+</html>

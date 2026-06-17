@@ -9,6 +9,7 @@ export function esc(value){
 
 export function toast(message){
   const el = $("#toast");
+  if(!el) return;
   el.textContent = message;
   el.classList.add("show");
   clearTimeout(window.__toast);
@@ -17,15 +18,11 @@ export function toast(message){
 
 export function saved(){
   const el = $("#saveIndicator");
+  if(!el) return;
   el.classList.add("show");
   clearTimeout(window.__saved);
   window.__saved = setTimeout(() => el.classList.remove("show"), 1200);
 }
 
-export function euro(value){
-  return "€" + Math.round(Number(value || 0)).toLocaleString("pt-BR");
-}
-
-export function uid(){
-  return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-}
+export function euro(value){ return "€" + Math.round(Number(value || 0)).toLocaleString("pt-BR"); }
+export function uid(){ return crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()); }

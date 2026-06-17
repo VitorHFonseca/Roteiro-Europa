@@ -1,12 +1,7 @@
-// Vercel Serverless Function
-// Deploy: vercel deploy
-// Env var required: OPENAI_API_KEY
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST" });
 
@@ -16,18 +11,15 @@ export default async function handler(req, res) {
 
     const body = req.body || {};
     const prompt = `
-Você é um consultor especialista em mochilão pela Europa, especialmente em viagens de trem no outono.
+Você é um consultor de mochilão pela Europa.
 Responda em português do Brasil.
+O app agora tem veículos editáveis e sugestões do dia editáveis.
 Modo: ${body.mode}
-Pedido do usuário: ${body.question || "sem pedido específico"}
+Pedido: ${body.question || "sem pedido"}
+Roteiro: ${JSON.stringify(body.route || [], null, 2)}
+Veículos: ${JSON.stringify(body.vehicles || [], null, 2)}
 
-Roteiro:
-${JSON.stringify(body.route || [], null, 2)}
-
-Preferências:
-${JSON.stringify(body.preferences || {}, null, 2)}
-
-Retorne APENAS JSON válido neste formato:
+Retorne APENAS JSON válido:
 {
   "title": "título curto",
   "cards": [
@@ -49,22 +41,11 @@ Retorne APENAS JSON válido neste formato:
     });
 
     const data = await openai.json();
+    if (!openai.ok) return res.status(openai.status).json({ error: data.error?.message || "Erro na OpenAI", raw: data });
 
-    if (!openai.ok) {
-      return res.status(openai.status).json({ error: data.error?.message || "Erro na OpenAI", raw: data });
-    }
-
-    const text =
-      data.output_text ||
-      data.output?.map(o => o.content?.map(c => c.text).join("")).join("") ||
-      "";
-
-    try {
-      const json = JSON.parse(text);
-      return res.status(200).json(json);
-    } catch {
-      return res.status(200).json({ title: "Resposta da IA", answer: text });
-    }
+    const text = data.output_text || data.output?.map(o => o.content?.map(c => c.text).join("")).join("") || "";
+    try { return res.status(200).json(JSON.parse(text)); }
+    catch { return res.status(200).json({ title: "Resposta da IA", answer: text }); }
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

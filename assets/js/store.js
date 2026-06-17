@@ -1,9 +1,8 @@
 import { START_ROUTE, CHECKS, PACK } from "./data.js";
 
-const USERS_KEY = "roteiroEuropaOnline.users";
-const SESSION_KEY = "roteiroEuropaOnline.session";
-const STATE_KEY = "roteiroEuropaOnline.state";
-
+const USERS_KEY = "roteiroEuropaPlus.users";
+const SESSION_KEY = "roteiroEuropaPlus.session";
+const STATE_KEY = "roteiroEuropaPlus.state";
 const encode = value => btoa(unescape(encodeURIComponent(String(value))));
 const normalize = value => String(value || "").trim().toLowerCase();
 
@@ -47,9 +46,7 @@ export function getSession(){
   catch { return null; }
 }
 
-export function logout(){
-  localStorage.removeItem(SESSION_KEY);
-}
+export function logout(){ localStorage.removeItem(SESSION_KEY); }
 
 export function defaultState(){
   const checklist = [];
@@ -59,13 +56,10 @@ export function defaultState(){
     cityDays:{lisboa:2,barcelona:3,zurique:2,paris:4,berlim:3,copenhague:2,veneza:2},
     dayDone:{},
     dayNotes:{},
+    daySuggestions:{},
     openDay:null,
-    expenses:[
-      {id:crypto.randomUUID(),cat:"Transporte",desc:"Trens internos",amount:390},
-      {id:crypto.randomUUID(),cat:"Hospedagem",desc:"Hostels e hotéis",amount:620},
-      {id:crypto.randomUUID(),cat:"Alimentação",desc:"Comida e mercado",amount:360},
-      {id:crypto.randomUUID(),cat:"Passeios",desc:"Museus e atrações",amount:180}
-    ],
+    vehicles:[],
+    expenses:[],
     checklist,
     pack: PACK.map((p,i)=>({id:"p"+i, cat:p[0], icon:p[1], name:p[2], weight:p[3], done:false})),
     diary:[],
@@ -73,8 +67,9 @@ export function defaultState(){
       traveler:"",
       startDate:"",
       aiEndpoint:"",
-      syncEndpoint:"",
-      onlineMode:false,
+      supabaseUrl:"",
+      supabaseAnonKey:"",
+      supabaseEmail:"",
       currencyFrom:"EUR",
       currencyTo:"BRL",
       phraseLang:"EN"
@@ -83,11 +78,22 @@ export function defaultState(){
   };
 }
 
+function migrate(state){
+  state.daySuggestions ||= {};
+  state.vehicles ||= [];
+  state.expenses ||= [];
+  state.settings ||= {};
+  state.settings.supabaseUrl ||= "";
+  state.settings.supabaseAnonKey ||= "";
+  state.settings.supabaseEmail ||= "";
+  return state;
+}
+
 export function loadState(userId){
   try{
     const raw = localStorage.getItem(`${STATE_KEY}.${userId}`);
     if(!raw) return defaultState();
-    return {...defaultState(), ...JSON.parse(raw)};
+    return migrate({...defaultState(), ...JSON.parse(raw)});
   }catch{
     return defaultState();
   }
@@ -97,6 +103,4 @@ export function saveState(userId,state){
   localStorage.setItem(`${STATE_KEY}.${userId}`, JSON.stringify(state));
 }
 
-export function clearState(userId){
-  localStorage.removeItem(`${STATE_KEY}.${userId}`);
-}
+export function clearState(userId){ localStorage.removeItem(`${STATE_KEY}.${userId}`); }

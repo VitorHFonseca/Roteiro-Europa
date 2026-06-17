@@ -4,28 +4,28 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
   <meta name="theme-color" content="#09090f">
-  <title>Mochilão Europa Online IA</title>
+  <title>Mochilão Europa Plus</title>
 
-  <link rel="manifest" href="./manifest.json?v=online-ia-1">
-  <link rel="icon" href="./assets/icons/icon.svg?v=online-ia-1">
+  <link rel="manifest" href="./manifest.json?v=plus-veiculos-1">
+  <link rel="icon" href="./assets/icons/icon.svg?v=plus-veiculos-1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,700&family=DM+Sans:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/css/style.css?v=online-ia-1">
+  <link rel="stylesheet" href="./assets/css/style.css?v=plus-veiculos-1">
 </head>
 <body>
   <div class="save-indicator" id="saveIndicator">💾 Salvo</div>
   <div class="toast" id="toast"></div>
 
   <section id="loginScreen" class="login-screen">
-    <div class="login-orb orb-a"></div>
-    <div class="login-orb orb-b"></div>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
 
     <div class="login-layout">
       <div class="login-copy">
-        <span class="hero-badge">🍂 Mochilão Europa · Online · IA</span>
+        <span class="hero-badge">🍂 Mochilão Europa · Plus · Veículos</span>
         <h1>Outono na<br><em>Europa</em></h1>
-        <p>Um planner visual inspirado no seu HTML: roteiro, mapa, países, trens, orçamento, checklist, mochila, moedas, frases, diário e recomendações com IA.</p>
+        <p>Planner com imagens dos locais, mapa corrigido, sugestões editáveis por dia, veículos personalizáveis e autopreenchimentos inteligentes.</p>
         <div class="route-strip" id="loginRouteStrip"></div>
       </div>
 
@@ -37,7 +37,7 @@
 
         <form id="loginForm" class="auth-form">
           <h2>Entrar no app</h2>
-          <p class="muted">Conta local para organizar sua viagem neste navegador.</p>
+          <p class="muted">Sua conta local continua funcionando.</p>
           <label>Usuário</label>
           <input id="loginUser" required autocomplete="username" placeholder="ex.: vitor">
           <label>Senha</label>
@@ -58,7 +58,7 @@
           <button class="primary-btn full">Criar e entrar</button>
         </form>
 
-        <small class="auth-note">🔐 Para IA real, configure um endpoint seguro em <strong>Online & IA</strong>. Não coloque chave de API diretamente no navegador.</small>
+        <small class="auth-note">🔐 Login local + Supabase opcional para nuvem. Não use senha real de banco ou rede social.</small>
       </div>
     </div>
   </section>
@@ -72,9 +72,9 @@
         <button id="logoutBtn" class="ghost-dark">Sair</button>
       </div>
     </div>
-    <span class="hero-badge">🍂 Mochilão · Outubro · Europa de Trem</span>
+    <span class="hero-badge">🍂 Mochilão · Outubro · Europa</span>
     <h1>Outono na<br><em>Europa</em></h1>
-    <p class="hero-sub">Roteiro completo, interativo, com IA online opcional e salvamento automático.</p>
+    <p class="hero-sub">Visual premium, imagens dos destinos, mapa corrigido e sugestões editáveis.</p>
     <div class="route-strip" id="heroRouteStrip"></div>
     <div class="scroll-hint"><span>explorar</span><div class="scroll-dot"></div></div>
   </section>
@@ -86,9 +86,9 @@
         <button class="nav-btn active" data-section="roteiro">📅 Roteiro</button>
         <button class="nav-btn" data-section="mapa">🗺️ Mapa</button>
         <button class="nav-btn" data-section="montador">✏️ Montar</button>
-        <button class="nav-btn" data-section="ia">🤖 IA <span class="badge-new">ONLINE</span></button>
+        <button class="nav-btn" data-section="ia">🤖 IA</button>
         <button class="nav-btn" data-section="paises">🌍 Países</button>
-        <button class="nav-btn" data-section="trens">🚆 Trens</button>
+        <button class="nav-btn" data-section="veiculos">🚗 Veículos <span class="badge-new">NOVO</span></button>
         <button class="nav-btn" data-section="orcamento">💶 Orçamento</button>
         <button class="nav-btn" data-section="dicas">💡 Dicas</button>
         <button class="nav-btn" data-section="checklist">✅ Checklist</button>
@@ -104,6 +104,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./assets/js/app.js?v=online-ia-1"></script>
+  <script type="module" src="./assets/js/app.js?v=plus-veiculos-1"></script>
 </body>
 </html>

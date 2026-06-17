@@ -1,4 +1,4 @@
-const CACHE = "roteiro-europa-online-ia-v1";
+const CACHE = "roteiro-europa-plus-veiculos-v1";
 const APP = [
   "./",
   "./index.html",
@@ -6,11 +6,12 @@ const APP = [
   "./assets/css/style.css",
   "./assets/icons/icon.svg",
   "./assets/js/app.js",
-  "./assets/js/core/data.js",
-  "./assets/js/core/store.js",
-  "./assets/js/core/ui.js",
-  "./assets/js/modules/render.js",
-  "./assets/js/modules/ai.js"
+  "./assets/js/data.js",
+  "./assets/js/store.js",
+  "./assets/js/ui.js",
+  "./assets/js/render.js",
+  "./assets/js/ai.js",
+  "./assets/js/supabaseSync.js"
 ];
 
 self.addEventListener("install", event => {

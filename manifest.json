@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Online IA",
-  "short_name": "Europa IA",
-  "description": "Planner de mochilão pela Europa com visual premium e IA online opcional.",
-  "start_url": "./?v=online-ia-1",
+  "name": "Roteiro Europa Plus Veículos",
+  "short_name": "Europa Plus",
+  "description": "Planner de mochilão com imagens, mapa corrigido, veículos e sugestões editáveis.",
+  "start_url": "./?v=plus-veiculos-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

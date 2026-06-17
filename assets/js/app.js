@@ -1,14 +1,15 @@
-import { DB } from "./core/data.js";
-import { register, login, logout, getSession, demoSession, loadState, saveState } from "./core/store.js";
-import { $, $$, toast, saved, uid } from "./core/ui.js";
-import { routeStrip, roteiro, montador, mapa, ia, paises, trens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, cityChips } from "./modules/render.js";
-import { generateAI } from "./modules/ai.js";
+import { DB, RATES } from "./data.js";
+import { register, login, logout, getSession, demoSession, loadState, saveState } from "./store.js";
+import { $, $$, toast, saved, uid, euro } from "./ui.js";
+import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
+import { generateAI } from "./ai.js";
+import { isSupabaseConfigured, supabaseCurrentUser, supabaseSignUp, supabaseSignIn, supabaseSignOut, supabasePush, supabasePull } from "./supabaseSync.js";
 
 let session = getSession();
 let state = session ? loadState(session.id) : null;
 let section = "roteiro";
 
-const views = { roteiro, montador, mapa, ia, paises, trens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online };
+const views = { roteiro, montador, mapa, ia, paises, veiculos, orcamento, dicas, checklist, mochila, moedas, frases, diario, online };
 
 function persist(message){
   saveState(session.id, state);
@@ -51,8 +52,64 @@ function render(){
   bind();
 }
 
+function routeSegments(){
+  const segments = [];
+  for(let i=0;i<state.route.length-1;i++){
+    const a = DB[state.route[i]];
+    const b = DB[state.route[i+1]];
+    if(a && b) segments.push({from:a.name,to:b.name,fromId:state.route[i],toId:state.route[i+1]});
+  }
+  return segments;
+}
+
+function suggestVehicleForSegment(seg){
+  const long = ["Lisboa","Atenas","Copenhague"].includes(seg.from) || ["Lisboa","Atenas","Copenhague"].includes(seg.to);
+  return {
+    id:uid(),
+    type: long ? "aviao" : "trem",
+    from:seg.from,
+    to:seg.to,
+    duration: long ? "2h-4h" : "2h-7h",
+    cost: long ? "€60-160" : "€25-120",
+    provider: long ? "Skyscanner / Google Flights" : "Omio / Trainline / site oficial",
+    notes: long ? "Opção rápida. Verificar bagagem e deslocamento até aeroporto." : "Opção confortável. Comparar preço com ônibus e reservar cedo."
+  };
+}
+
+function autoVehicles(){
+  state.vehicles = routeSegments().map(suggestVehicleForSegment);
+  persist("Veículos autopreenchidos.");
+  render();
+}
+
+function autoBudget(){
+  const lodging = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2)*38,0);
+  const food = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2)*28,0);
+  const attractions = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2)*14,0);
+  const transport = state.vehicles.length ? state.vehicles.length * 65 : Math.max(1,state.route.length-1)*70;
+  state.expenses = [
+    {id:uid(),cat:"Hospedagem",desc:"Estimativa de hospedagem por noites",amount:lodging},
+    {id:uid(),cat:"Alimentação",desc:"Mercado, cafés e refeições",amount:food},
+    {id:uid(),cat:"Passeios",desc:"Museus, atrações e experiências",amount:attractions},
+    {id:uid(),cat:"Veículos",desc:"Deslocamentos entre cidades",amount:transport}
+  ];
+  persist("Orçamento autopreenchido.");
+  render();
+}
+
+function autoAllDaySuggestions(){
+  daysFromRoute(state).forEach(day => {
+    state.daySuggestions[day.key] = generatedSuggestions(day);
+  });
+  persist("Sugestões dos dias autopreenchidas.");
+  render();
+}
+
 function bind(){
   $$("[data-section]").forEach(btn => btn.onclick = () => { section = btn.dataset.section; render(); });
+  $$("[data-section-go]").forEach(btn => btn.onclick = () => { section = btn.dataset.sectionGo; render(); });
+
+  $("#autoFillAll")?.addEventListener("click", autoAllDaySuggestions);
 
   $$("[data-open-day]").forEach(el => el.onclick = (e) => {
     if(e.target.closest("[data-toggle-day]")) return;
@@ -74,11 +131,22 @@ function bind(){
     persist();
   });
 
+  $$("[data-day-suggestions]").forEach(area => area.oninput = () => {
+    state.daySuggestions[area.dataset.daySuggestions] = area.value;
+    persist();
+  });
+
+  $$("[data-reset-suggestions]").forEach(btn => btn.onclick = () => {
+    const c = DB[btn.dataset.city];
+    state.daySuggestions[btn.dataset.resetSuggestions] = generatedSuggestions({city:c, localDay:Number(btn.dataset.localDay)});
+    persist("Dicas do dia regeneradas.");
+    render();
+  });
+
   $$("[data-city-chip]").forEach(chip => chip.onclick = () => {
     const id = chip.dataset.cityChip;
-    if(state.route.includes(id)){
-      state.route = state.route.filter(x => x !== id);
-    }else{
+    if(state.route.includes(id)) state.route = state.route.filter(x => x !== id);
+    else {
       state.route.push(id);
       state.cityDays[id] ||= DB[id].sugDays || 2;
     }
@@ -117,21 +185,16 @@ function bind(){
     render();
   });
 
-  $("[data-go-ai]")?.addEventListener("click", () => { section = "ia"; render(); });
-
   $$("[data-map-city]").forEach(point => {
     point.onclick = () => {
       const id = point.dataset.mapCity;
       const c = DB[id];
       const tip = $("#mapTooltip");
-      tip.innerHTML = `
-        <div class="tooltip-name">${c.flag} ${c.name}</div>
-        <div class="tooltip-meta">${c.country} · ${c.vibe}</div>
-        <div class="tooltip-desc">${c.desc}</div>
-        <button class="primary-btn full" data-map-toggle="${id}">${state.route.includes(id) ? "Remover do roteiro" : "Adicionar ao roteiro"}</button>
-      `;
-      tip.style.left = Math.min(75, c.x + 2) + "%";
-      tip.style.top = Math.max(8, c.y - 12) + "%";
+      tip.innerHTML = `<div class="tooltip-img"><img src="${c.image}" alt="${c.name}" loading="lazy"></div><div class="tooltip-name">${c.flag} ${c.name}</div><div class="tooltip-meta">${c.country} · ${c.vibe}</div><div class="tooltip-desc">${c.desc}</div><button class="primary-btn full" data-map-toggle="${id}">${state.route.includes(id) ? "Remover do roteiro" : "Adicionar ao roteiro"}</button>`;
+      const x = Math.min(78, Math.max(4, c.x + 2));
+      const y = Math.min(70, Math.max(5, c.y - 18));
+      tip.style.left = x + "%";
+      tip.style.top = y + "%";
       tip.classList.add("show");
       tip.querySelector("[data-map-toggle]").onclick = () => {
         if(state.route.includes(id)) state.route = state.route.filter(x => x !== id);
@@ -140,6 +203,38 @@ function bind(){
         render();
       };
     };
+  });
+
+  $("#autoVehicles")?.addEventListener("click", autoVehicles);
+  $("#clearVehicles")?.addEventListener("click", () => { state.vehicles = []; persist("Veículos limpos."); render(); });
+
+  $("#vehicleForm")?.addEventListener("submit", e => {
+    e.preventDefault();
+    state.vehicles.push({
+      id:uid(),
+      type:$("#vehType").value,
+      from:$("#vehFrom").value,
+      to:$("#vehTo").value,
+      duration:$("#vehDuration").value,
+      cost:$("#vehCost").value,
+      provider:$("#vehProvider").value,
+      notes:$("#vehNotes").value
+    });
+    persist("Veículo adicionado.");
+    render();
+  });
+
+  $$("[data-del-vehicle]").forEach(btn => btn.onclick = () => {
+    state.vehicles = state.vehicles.filter(v => v.id !== btn.dataset.delVehicle);
+    persist("Veículo removido.");
+    render();
+  });
+
+  $$("[data-vehicle-field]").forEach(input => input.oninput = () => {
+    const [id,field] = input.dataset.vehicleField.split(":");
+    const v = state.vehicles.find(x => x.id === id);
+    if(v) v[field] = input.value;
+    persist();
   });
 
   $$("[data-ai-mode]").forEach(btn => btn.onclick = async () => {
@@ -155,12 +250,13 @@ function bind(){
       persist("Sugestões geradas.");
       render();
     }catch(err){
-      content.innerHTML = `<div class="ai-card"><h4>Erro na IA online</h4><p class="muted">${err.message}</p><p class="muted">Confira o endpoint em Online & IA ou use sem endpoint para fallback local.</p></div>`;
+      content.innerHTML = `<div class="ai-card"><h4>Erro na IA online</h4><p class="muted">${err.message}</p></div>`;
       toast("Erro na IA online.");
-    }finally{
-      btn.disabled = false;
-    }
+    }finally{ btn.disabled = false; }
   });
+
+  $("#autoBudget")?.addEventListener("click", autoBudget);
+  $("#clearBudget")?.addEventListener("click", () => { state.expenses = []; persist("Orçamento limpo."); render(); });
 
   $("#expenseForm")?.addEventListener("submit", e => {
     e.preventDefault();
@@ -191,7 +287,7 @@ function bind(){
 
   $("#curFrom")?.addEventListener("change", e => { state.settings.currencyFrom = e.target.value; persist(); render(); });
   $("#curTo")?.addEventListener("change", e => { state.settings.currencyTo = e.target.value; persist(); render(); });
-  $("#curAmount")?.addEventListener("input", e => updateCurrency());
+  $("#curAmount")?.addEventListener("input", updateCurrency);
   $("#swapCurrency")?.addEventListener("click", () => {
     [state.settings.currencyFrom,state.settings.currencyTo] = [state.settings.currencyTo,state.settings.currencyFrom];
     persist();
@@ -223,15 +319,7 @@ function bind(){
     render();
   });
 
-  $("#saveAiEndpoint")?.addEventListener("click", () => {
-    state.settings.aiEndpoint = $("#aiEndpoint").value.trim();
-    state.settings.syncEndpoint = $("#syncEndpoint")?.value.trim() || state.settings.syncEndpoint;
-    persist("Configuração online salva.");
-    render();
-  });
-
-  $("#pushSync")?.addEventListener("click", pushSync);
-  $("#pullSync")?.addEventListener("click", pullSync);
+  bindSupabase();
 }
 
 function updateCurrency(){
@@ -240,32 +328,85 @@ function updateCurrency(){
   if(!result) return;
   const from = state.settings.currencyFrom || "EUR";
   const to = state.settings.currencyTo || "BRL";
-  const rates = { EUR:1, BRL:5.9, USD:1.08, GBP:.86, CHF:.95, CZK:25.1, DKK:7.46, HUF:390 };
-  const value = amount * ((rates[to] || 1) / (rates[from] || 1));
+  const value = amount * ((RATES[to] || 1) / (RATES[from] || 1));
   result.textContent = `${value.toFixed(2)} ${to}`;
 }
 
-async function pushSync(){
-  const endpoint = $("#syncEndpoint").value.trim();
-  state.settings.syncEndpoint = endpoint;
-  if(!endpoint) return toast("Informe um endpoint de sincronização.");
-  const res = await fetch(endpoint, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({user:session.id,state})});
-  if(!res.ok) return toast("Erro ao enviar para nuvem.");
-  persist("Dados enviados para nuvem.");
+function saveSupabaseFields(){
+  if($("#supabaseUrl")) state.settings.supabaseUrl = $("#supabaseUrl").value.trim();
+  if($("#supabaseAnonKey")) state.settings.supabaseAnonKey = $("#supabaseAnonKey").value.trim();
+  if($("#supabaseEmail")) state.settings.supabaseEmail = $("#supabaseEmail").value.trim();
+  saveState(session.id, state);
 }
 
-async function pullSync(){
-  const endpoint = $("#syncEndpoint").value.trim();
-  state.settings.syncEndpoint = endpoint;
-  if(!endpoint) return toast("Informe um endpoint de sincronização.");
-  const res = await fetch(`${endpoint}?user=${encodeURIComponent(session.id)}`);
-  if(!res.ok) return toast("Erro ao baixar da nuvem.");
-  const data = await res.json();
-  if(data.state){
-    state = data.state;
-    persist("Dados baixados da nuvem.");
+async function updateSupabaseStatus(userOverride){
+  const el = $("#supabaseStatus");
+  if(!el) return;
+  try{
+    if(!isSupabaseConfigured(state)){ el.textContent = "Status: Supabase não configurado"; return; }
+    const user = userOverride === undefined ? await supabaseCurrentUser(state) : userOverride;
+    el.textContent = user ? `Status: conectado como ${user.email || user.id}` : "Status: configurado, mas sem login";
+  }catch{ el.textContent = "Status: configurado, mas sem login"; }
+}
+
+function bindSupabase(){
+  $("#saveAiEndpoint")?.addEventListener("click", () => {
+    state.settings.aiEndpoint = $("#aiEndpoint").value.trim();
+    persist("Endpoint de IA salvo.");
     render();
-  }else toast("Endpoint não retornou state.");
+  });
+
+  $("#saveSupabaseConfig")?.addEventListener("click", () => {
+    saveSupabaseFields();
+    persist("Configuração Supabase salva.");
+    updateSupabaseStatus();
+  });
+
+  $("#copySupabaseSql")?.addEventListener("click", async () => {
+    await navigator.clipboard?.writeText($("#supabaseSql").innerText);
+    toast("SQL copiado.");
+  });
+
+  $("#supabaseSignup")?.addEventListener("click", async () => {
+    try{
+      saveSupabaseFields();
+      const user = await supabaseSignUp(state, $("#supabaseEmail").value.trim(), $("#supabasePassword").value);
+      persist("Conta Supabase criada.");
+      await updateSupabaseStatus(user);
+    }catch(err){ toast(err.message); }
+  });
+
+  $("#supabaseLogin")?.addEventListener("click", async () => {
+    try{
+      saveSupabaseFields();
+      const user = await supabaseSignIn(state, $("#supabaseEmail").value.trim(), $("#supabasePassword").value);
+      persist("Login Supabase realizado.");
+      await updateSupabaseStatus(user);
+    }catch(err){ toast(err.message); }
+  });
+
+  $("#supabaseLogout")?.addEventListener("click", async () => {
+    try{ await supabaseSignOut(state); toast("Você saiu do Supabase."); await updateSupabaseStatus(null); }
+    catch(err){ toast(err.message); }
+  });
+
+  $("#supabasePush")?.addEventListener("click", async () => {
+    try{ saveSupabaseFields(); await supabasePush(state); persist("Dados enviados para o Supabase."); await updateSupabaseStatus(); }
+    catch(err){ toast(err.message); }
+  });
+
+  $("#supabasePull")?.addEventListener("click", async () => {
+    try{
+      saveSupabaseFields();
+      const keep = {...state.settings};
+      const cloud = await supabasePull(state);
+      state = {...state, ...cloud.state, settings:{...(cloud.state.settings || {}), ...keep}};
+      persist("Dados baixados do Supabase.");
+      render();
+    }catch(err){ toast(err.message); }
+  });
+
+  updateSupabaseStatus();
 }
 
 $("#tabLogin").onclick = () => {
@@ -313,10 +454,9 @@ $("#logoutBtn").onclick = () => {
 };
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=online-ia-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=plus-veiculos-1").catch(()=>{});
 }
 
 if(session && state) showHero();
 else showLogin();
-
 renderStrips();

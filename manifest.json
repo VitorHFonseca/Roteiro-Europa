@@ -1,12 +1,11 @@
 {
-  "name": "Mochilão Europa",
+  "name": "Mochilão Europa Final",
   "short_name": "Mochilão",
-  "description": "Planejador offline para mochilão pela Europa.",
-  "start_url": "./",
+  "start_url": "./?v=final-2",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f8fc",
-  "theme_color": "#2563eb",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
   "icons": [
     {
       "src": "assets/icons/icon.svg",

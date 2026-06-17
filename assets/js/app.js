@@ -1,225 +1,36 @@
-import { loadState, saveState, resetState } from "./core/storage.js";
-import { $, $$, toast } from "./core/dom.js";
-import { findKnownCity } from "./core/europe-cities.js";
-import { renderDashboard } from "./modules/dashboard.js";
-import { renderPlanner } from "./modules/planner.js";
-import { renderMapView, mountMap } from "./modules/map.js";
-import { renderBudget } from "./modules/budget.js";
-import { renderChecklist } from "./modules/checklist.js";
-import { renderDiary } from "./modules/diary.js";
-import { renderSettings, attachSettingsEvents } from "./modules/settings.js";
-import { exportPdf } from "./modules/pdf.js";
-
-let state = loadState();
-let currentView = "dashboard";
-
-const titles = {
-  dashboard: "Dashboard",
-  planner: "Roteiro",
-  map: "Mapa",
-  budget: "Orçamento",
-  checklist: "Checklist",
-  diary: "Diário",
-  settings: "Configurações"
+import{load,save,wipe}from"./core/storage.js?v=final-2";import{known,findCity}from"./core/cities.js?v=final-2";
+let state=load(),page="dashboard",map=null;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],money=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:state.profile.currency||"EUR"}).format(v||0),esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function toast(t){$("#toast").textContent=t;$("#toast").classList.add("show");setTimeout(()=>$("#toast").classList.remove("show"),2200)}
+function persist(t="Salvo"){save(state);render();toast(t)}
+function title(){return{dashboard:"Dashboard",route:"Roteiro",map:"Mapa",budget:"Orçamento",checklist:"Checklist",diary:"Diário",settings:"Configurações"}[page]}
+function render(){if($("#app").classList.contains("hidden"))return;$("#title").textContent=title();$$(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===page));$("#view").innerHTML=views[page]();bind();if(page==="map")setTimeout(drawMap,100)}
+const views={
+dashboard:()=>{let total=state.expenses.reduce((s,e)=>s+Number(e.amount),0),countries=new Set(state.cities.map(c=>c.country).filter(Boolean));return`<div class="grid cols4"><div class="card stat"><span>Cidades</span><strong>${state.cities.length}</strong></div><div class="card stat"><span>Países</span><strong>${countries.size}</strong></div><div class="card stat"><span>Gastos</span><strong>${money(total)}</strong></div><div class="card stat"><span>Checklist</span><strong>${state.checks.filter(c=>c.done).length}/${state.checks.length}</strong></div></div><div class="grid cols2" style="margin-top:18px"><div class="card"><h3>Resumo</h3><p class="muted"><b>${esc(state.profile.name)}</b><br>Viajante: ${esc(state.profile.traveler)||"-"}<br>Período: ${state.profile.start||"-"} até ${state.profile.end||"-"}<br>Orçamento diário: ${money(Number(state.profile.daily||0))}</p></div><div class="card"><h3>Próximas cidades</h3>${state.cities.slice(0,6).map((c,i)=>`<p><b>${i+1}. ${esc(c.name)}</b><br><span class="muted">${esc(c.country)} • ${c.start||"-"} até ${c.end||"-"}</span></p>`).join("")||"<p class='muted'>Adicione cidades no roteiro.</p>"}</div></div>`},
+route:()=>`<div class="card"><h3>Adicionar cidade</h3><form id="cityForm" class="form"><div class="field"><label>Cidade</label><input id="city" list="cityList" required><datalist id="cityList">${known.map(c=>`<option value="${c[0]}">${c[0]} - ${c[1]}</option>`).join("")}</datalist></div><div class="field"><label>País</label><input id="country"></div><div class="field"><label>Chegada</label><input id="start" type="date"></div><div class="field"><label>Saída</label><input id="end" type="date"></div><div class="field wide"><label>Notas</label><textarea id="notes"></textarea></div><button class="primary">Adicionar</button></form></div><div class="card" style="margin-top:18px"><h3>Roteiro</h3><table><thead><tr><th>#</th><th>Cidade</th><th>Período</th><th>Notas</th><th>Ações</th></tr></thead><tbody>${state.cities.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.country)}</span></td><td>${c.start||"-"}<br>${c.end||"-"}</td><td>${esc(c.notes)}</td><td class="row"><button class="secondary" data-up="${c.id}">↑</button><button class="secondary" data-down="${c.id}">↓</button><button class="danger" data-delcity="${c.id}">Excluir</button></td></tr>`).join("")||"<tr><td colspan='5'>Nenhuma cidade.</td></tr>"}</tbody></table></div>`,
+map:()=>`<div class="grid cols3"><div class="card" style="grid-column:span 2"><h3>Mapa Leaflet / OpenStreetMap</h3><div id="mapBox" class="map"></div></div><div class="card"><h3>Ordem</h3><div class="list">${state.cities.map((c,i)=>`<div class="item"><b>${i+1}. ${esc(c.name)}</b><span class="muted">${esc(c.country)}</span></div>`).join("")||"<p class='muted'>Sem cidades.</p>"}</div></div></div>`,
+budget:()=>{let cats=["Hospedagem","Transporte","Alimentação","Passeios","Compras","Emergência","Outros"];let total=state.expenses.reduce((s,e)=>s+Number(e.amount),0);return`<div class="grid cols3"><div class="card stat"><span>Total</span><strong>${money(total)}</strong></div><div class="card stat"><span>Lançamentos</span><strong>${state.expenses.length}</strong></div><div class="card stat"><span>Média</span><strong>${money(total/Math.max(1,state.expenses.length))}</strong></div></div><div class="card" style="margin-top:18px"><h3>Novo gasto</h3><form id="expenseForm" class="form"><div class="field"><label>Descrição</label><input id="desc" required></div><div class="field"><label>Categoria</label><select id="cat">${cats.map(c=>`<option>${c}</option>`).join("")}</select></div><div class="field"><label>Valor</label><input id="amount" type="number" step=".01" required></div><div class="field"><label>Data</label><input id="date" type="date"></div><button class="primary">Adicionar</button></form></div><div class="card" style="margin-top:18px"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th></th></tr></thead><tbody>${state.expenses.map(e=>`<tr><td>${e.date||"-"}</td><td>${esc(e.desc)}</td><td>${esc(e.cat)}</td><td>${money(Number(e.amount))}</td><td><button class="danger" data-delexp="${e.id}">Excluir</button></td></tr>`).join("")||"<tr><td colspan='5'>Nenhum gasto.</td></tr>"}</tbody></table></div>`},
+checklist:()=>{let cats=["Documentos","Reservas","Transporte","Mochila","Dinheiro","Saúde","Tecnologia","Outros"];return`<div class="card"><h3>Checklist</h3><form id="checkForm" class="form"><div class="field"><label>Item</label><input id="checkText" required></div><div class="field"><label>Categoria</label><select id="checkCat">${cats.map(c=>`<option>${c}</option>`).join("")}</select></div><button class="primary">Adicionar</button></form></div><div class="card" style="margin-top:18px"><div class="list">${state.checks.map(c=>`<div class="item ${c.done?"done":""}"><label><input type="checkbox" data-toggle="${c.id}" ${c.done?"checked":""}> <b>${esc(c.text)}</b><br><span class="muted">${esc(c.cat)}</span></label><button class="danger" data-delcheck="${c.id}">Excluir</button></div>`).join("")}</div></div>`},
+diary:()=>`<div class="card"><h3>Diário de viagem</h3><form id="diaryForm" class="form"><div class="field"><label>Data</label><input id="dDate" type="date"></div><div class="field"><label>Humor</label><select id="mood"><option>😍 Incrível</option><option>🙂 Bom</option><option>😐 Normal</option><option>😴 Cansativo</option><option>🤯 Caótico</option></select></div><div class="field wide"><label>Título</label><input id="dTitle" required></div><div class="field wide"><label>Texto</label><textarea id="dText" required></textarea></div><button class="primary">Salvar</button></form></div><div class="card" style="margin-top:18px"><div class="list">${state.diary.map(d=>`<div class="item"><div><b>${esc(d.title)}</b><p class="muted">${d.date||"-"} • ${esc(d.mood)}</p><p>${esc(d.text)}</p></div><button class="danger" data-deldiary="${d.id}">Excluir</button></div>`).join("")||"<p class='muted'>Nenhuma entrada.</p>"}</div></div>`,
+settings:()=>`<div class="grid cols2"><div class="card"><h3>Dados da viagem</h3><form id="profileForm" class="form"><div class="field"><label>Nome</label><input id="pName" value="${esc(state.profile.name)}"></div><div class="field"><label>Viajante</label><input id="traveler" value="${esc(state.profile.traveler)}"></div><div class="field"><label>Início</label><input id="pStart" type="date" value="${state.profile.start}"></div><div class="field"><label>Fim</label><input id="pEnd" type="date" value="${state.profile.end}"></div><div class="field"><label>Moeda</label><select id="cur"><option>EUR</option><option>BRL</option><option>USD</option><option>GBP</option></select></div><div class="field"><label>Orçamento diário</label><input id="daily" type="number" value="${state.profile.daily}"></div><button class="primary">Salvar</button></form></div><div class="card"><h3>Dados locais</h3><p class="muted">Tudo fica salvo apenas neste navegador.</p><div class="row"><button class="secondary" id="backup">Backup JSON</button><button class="secondary" id="import">Importar JSON</button><input class="hidden" type="file" id="file" accept="application/json"><button class="danger" id="wipe">Apagar tudo</button></div></div></div>`
 };
-
-function persist(message="Salvo."){
-  saveState(state);
-  toast(message);
+function bind(){
+$("#cityForm")?.addEventListener("submit",e=>{e.preventDefault();let k=findCity($("#city").value),c={id:crypto.randomUUID(),name:$("#city").value,country:$("#country").value||k?.[1]||"",start:$("#start").value,end:$("#end").value,notes:$("#notes").value,lat:k?.[2]??null,lng:k?.[3]??null};state.cities.push(c);persist("Cidade adicionada")});
+$$("[data-delcity]").forEach(b=>b.onclick=()=>{state.cities=state.cities.filter(c=>c.id!==b.dataset.delcity);persist("Cidade excluída")});
+$$("[data-up],[data-down]").forEach(b=>b.onclick=()=>{let id=b.dataset.up||b.dataset.down,i=state.cities.findIndex(c=>c.id===id),n=i+(b.dataset.up?-1:1);if(n<0||n>=state.cities.length)return;let [x]=state.cities.splice(i,1);state.cities.splice(n,0,x);persist("Ordem alterada")});
+$("#expenseForm")?.addEventListener("submit",e=>{e.preventDefault();state.expenses.push({id:crypto.randomUUID(),desc:$("#desc").value,cat:$("#cat").value,amount:Number($("#amount").value),date:$("#date").value});persist("Gasto adicionado")});
+$$("[data-delexp]").forEach(b=>b.onclick=()=>{state.expenses=state.expenses.filter(e=>e.id!==b.dataset.delexp);persist("Gasto excluído")});
+$("#checkForm")?.addEventListener("submit",e=>{e.preventDefault();state.checks.push({id:crypto.randomUUID(),text:$("#checkText").value,cat:$("#checkCat").value,done:false});persist("Item adicionado")});
+$$("[data-toggle]").forEach(b=>b.onchange=()=>{let c=state.checks.find(x=>x.id===b.dataset.toggle);if(c)c.done=b.checked;persist("Checklist atualizado")});
+$$("[data-delcheck]").forEach(b=>b.onclick=()=>{state.checks=state.checks.filter(c=>c.id!==b.dataset.delcheck);persist("Item removido")});
+$("#diaryForm")?.addEventListener("submit",e=>{e.preventDefault();state.diary.unshift({id:crypto.randomUUID(),date:$("#dDate").value,mood:$("#mood").value,title:$("#dTitle").value,text:$("#dText").value});persist("Diário salvo")});
+$$("[data-deldiary]").forEach(b=>b.onclick=()=>{state.diary=state.diary.filter(d=>d.id!==b.dataset.deldiary);persist("Entrada excluída")});
+$("#profileForm")?.addEventListener("submit",e=>{e.preventDefault();state.profile={name:$("#pName").value,traveler:$("#traveler").value,start:$("#pStart").value,end:$("#pEnd").value,currency:$("#cur").value,daily:Number($("#daily").value)};persist("Configurações salvas")});if($("#cur"))$("#cur").value=state.profile.currency||"EUR";
+$("#backup")?.addEventListener("click",()=>{let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}));a.download="backup-mochilao-europa.json";a.click()});
+$("#import")?.addEventListener("click",()=>$("#file").click());$("#file")?.addEventListener("change",async e=>{let f=e.target.files[0];if(!f)return;state=JSON.parse(await f.text());persist("Backup importado")});
+$("#wipe")?.addEventListener("click",()=>{if(confirm("Apagar todos os dados?")){wipe();state=load();persist("Dados apagados")}});
 }
-
-function saveAndRender(message="Salvo."){
-  persist(message);
-  render();
-}
-
-function render(){
-  $("#pageTitle").textContent = titles[currentView];
-
-  $("#dashboardView").innerHTML = renderDashboard(state);
-  $("#plannerView").innerHTML = renderPlanner(state);
-  $("#mapView").innerHTML = renderMapView(state);
-  $("#budgetView").innerHTML = renderBudget(state);
-  $("#checklistView").innerHTML = renderChecklist(state);
-  $("#diaryView").innerHTML = renderDiary(state);
-  $("#settingsView").innerHTML = renderSettings(state);
-
-  $$(".view").forEach(view => view.classList.remove("active"));
-  $(`#${currentView}View`).classList.add("active");
-
-  $$(".nav-link").forEach(btn => btn.classList.toggle("active", btn.dataset.view === currentView));
-
-  attachEvents();
-
-  if(currentView === "map") mountMap(state);
-}
-
-function attachEvents(){
-  $("#cityForm")?.addEventListener("submit", event => {
-    event.preventDefault();
-    const name = $("#cityName").value.trim();
-    const known = findKnownCity(name);
-    const city = {
-      id: crypto.randomUUID(),
-      name,
-      country: $("#cityCountry").value.trim() || known?.country || "",
-      startDate: $("#cityStart").value,
-      endDate: $("#cityEnd").value,
-      notes: $("#cityNotes").value.trim(),
-      lat: known?.lat ?? null,
-      lng: known?.lng ?? null
-    };
-    state.cities.push(city);
-    saveAndRender("Cidade adicionada ao roteiro.");
-  });
-
-  $$("[data-delete-city]").forEach(btn => btn.onclick = () => {
-    state.cities = state.cities.filter(c => c.id !== btn.dataset.deleteCity);
-    saveAndRender("Cidade removida.");
-  });
-
-  $$("[data-move-city]").forEach(btn => btn.onclick = () => {
-    const index = state.cities.findIndex(c => c.id === btn.dataset.moveCity);
-    const dir = Number(btn.dataset.dir);
-    const newIndex = index + dir;
-    if(index < 0 || newIndex < 0 || newIndex >= state.cities.length) return;
-    const [item] = state.cities.splice(index, 1);
-    state.cities.splice(newIndex, 0, item);
-    saveAndRender("Roteiro reorganizado.");
-  });
-
-  $("#expenseForm")?.addEventListener("submit", event => {
-    event.preventDefault();
-    state.expenses.push({
-      id: crypto.randomUUID(),
-      description: $("#expenseDescription").value.trim(),
-      category: $("#expenseCategory").value,
-      amount: Number($("#expenseAmount").value || 0),
-      date: $("#expenseDate").value
-    });
-    saveAndRender("Gasto adicionado.");
-  });
-
-  $$("[data-delete-expense]").forEach(btn => btn.onclick = () => {
-    state.expenses = state.expenses.filter(e => e.id !== btn.dataset.deleteExpense);
-    saveAndRender("Gasto removido.");
-  });
-
-  $("#checklistForm")?.addEventListener("submit", event => {
-    event.preventDefault();
-    state.checklist.push({
-      id: crypto.randomUUID(),
-      text: $("#checkText").value.trim(),
-      category: $("#checkCategory").value,
-      done: false
-    });
-    saveAndRender("Item adicionado.");
-  });
-
-  $$("[data-toggle-check]").forEach(input => input.onchange = () => {
-    const item = state.checklist.find(i => i.id === input.dataset.toggleCheck);
-    if(item) item.done = input.checked;
-    saveAndRender("Checklist atualizado.");
-  });
-
-  $$("[data-delete-check]").forEach(btn => btn.onclick = () => {
-    state.checklist = state.checklist.filter(i => i.id !== btn.dataset.deleteCheck);
-    saveAndRender("Item removido.");
-  });
-
-  $("#diaryForm")?.addEventListener("submit", event => {
-    event.preventDefault();
-    state.diary.unshift({
-      id: crypto.randomUUID(),
-      date: $("#diaryDate").value,
-      mood: $("#diaryMood").value,
-      title: $("#diaryTitle").value.trim(),
-      text: $("#diaryText").value.trim()
-    });
-    saveAndRender("Entrada salva no diário.");
-  });
-
-  $$("[data-delete-diary]").forEach(btn => btn.onclick = () => {
-    state.diary = state.diary.filter(d => d.id !== btn.dataset.deleteDiary);
-    saveAndRender("Entrada removida.");
-  });
-
-  $("#profileForm")?.addEventListener("submit", event => {
-    event.preventDefault();
-    state.profile = {
-      tripName: $("#tripName").value.trim(),
-      traveler: $("#traveler").value.trim(),
-      startDate: $("#tripStart").value,
-      endDate: $("#tripEnd").value,
-      baseCurrency: $("#baseCurrency").value,
-      dailyBudget: Number($("#dailyBudget").value || 0)
-    };
-    saveAndRender("Configurações salvas.");
-  });
-
-  $("#resetBtn")?.addEventListener("click", () => {
-    if(confirm("Apagar todos os dados deste navegador?")){
-      resetState();
-      state = loadState();
-      saveAndRender("Dados apagados.");
-    }
-  });
-
-  attachSettingsEvents(state, saveAndRender);
-}
-
-$$(".nav-link").forEach(btn => {
-  btn.addEventListener("click", () => {
-    currentView = btn.dataset.view;
-    render();
-  });
-});
-
-$("#exportPdfBtn").addEventListener("click", () => exportPdf(state));
-
-$("#sampleDataBtn").addEventListener("click", () => {
-  state.profile = {
-    tripName: "Mochilão Europa 2027",
-    traveler: "Vitor",
-    startDate: "2027-10-25",
-    endDate: "2027-11-12",
-    baseCurrency: "EUR",
-    dailyBudget: 80
-  };
-  state.cities = [
-    { id: crypto.randomUUID(), name:"Lisboa", country:"Portugal", startDate:"2027-10-25", endDate:"2027-10-28", notes:"Chegada, Alfama, Belém e miradouros.", lat:38.7223, lng:-9.1393 },
-    { id: crypto.randomUUID(), name:"Paris", country:"França", startDate:"2027-10-29", endDate:"2027-11-02", notes:"Torre Eiffel, Louvre, Montmartre.", lat:48.8566, lng:2.3522 },
-    { id: crypto.randomUUID(), name:"Roma", country:"Itália", startDate:"2027-11-03", endDate:"2027-11-07", notes:"Coliseu, Vaticano, Trastevere.", lat:41.9028, lng:12.4964 },
-    { id: crypto.randomUUID(), name:"Barcelona", country:"Espanha", startDate:"2027-11-08", endDate:"2027-11-12", notes:"Sagrada Família, Gótico, praia.", lat:41.3874, lng:2.1686 }
-  ];
-  state.expenses = [
-    { id: crypto.randomUUID(), description:"Hostel Lisboa", category:"Hospedagem", amount:120, date:"2027-10-25" },
-    { id: crypto.randomUUID(), description:"Trem/voo interno", category:"Transporte", amount:180, date:"2027-10-28" },
-    { id: crypto.randomUUID(), description:"Passeios Paris", category:"Passeios", amount:90, date:"2027-10-30" }
-  ];
-  state.diary = [
-    { id: crypto.randomUUID(), date:"2027-10-25", mood:"😍 Incrível", title:"Começo da aventura", text:"Cheguei na Europa e comecei o mochilão por Lisboa." }
-  ];
-  saveAndRender("Dados de exemplo carregados.");
-});
-
-let deferredPrompt;
-window.addEventListener("beforeinstallprompt", event => {
-  event.preventDefault();
-  deferredPrompt = event;
-  $("#installPwaBtn").classList.remove("hidden");
-});
-
-$("#installPwaBtn")?.addEventListener("click", async () => {
-  if(!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  $("#installPwaBtn").classList.add("hidden");
-});
-
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js").catch(console.error);
-}
-
-render();
+function drawMap(){let box=$("#mapBox");if(!box)return;if(!window.L){box.innerHTML="<p>Mapa precisa de internet na primeira carga.</p>";return}if(map){map.remove();map=null}map=L.map(box).setView([50,10],4);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(map);let pts=state.cities.filter(c=>c.lat&&c.lng).map(c=>[c.lat,c.lng,c]);pts.forEach((p,i)=>L.marker([p[0],p[1]]).addTo(map).bindPopup(`${i+1}. ${esc(p[2].name)}`));if(pts.length>1){let line=L.polyline(pts.map(p=>[p[0],p[1]]),{weight:4}).addTo(map);map.fitBounds(line.getBounds(),{padding:[30,30]})}else if(pts.length===1)map.setView([pts[0][0],pts[0][1]],8)}
+function pdf(){if(!window.jspdf?.jsPDF){alert("jsPDF não carregou");return}let doc=new jspdf.jsPDF(),y=15;let line=t=>{if(y>280){doc.addPage();y=15}doc.text(String(t),12,y);y+=7};doc.setFontSize(18);line(state.profile.name||"Mochilão Europa");doc.setFontSize(11);line(`Viajante: ${state.profile.traveler||"-"}`);line(`Período: ${state.profile.start||"-"} até ${state.profile.end||"-"}`);y+=4;line("ROTEIRO");state.cities.forEach((c,i)=>line(`${i+1}. ${c.name} - ${c.country} - ${c.start||"-"} a ${c.end||"-"}`));y+=4;line("GASTOS");state.expenses.forEach(e=>line(`${e.date||"-"} ${e.cat} ${e.desc} ${money(e.amount)}`));y+=4;line("CHECKLIST");state.checks.forEach(c=>line(`${c.done?"[x]":"[ ]"} ${c.cat} - ${c.text}`));y+=4;line("DIARIO");state.diary.forEach(d=>{line(`${d.date||"-"} ${d.title}`);line(d.text)});doc.save("mochilao-europa.pdf")}
+$$(".nav").forEach(b=>b.dataset.page&&(b.onclick=()=>{page=b.dataset.page;render()}));$("#openApp").onclick=()=>{$("#home").classList.add("hidden");$("#app").classList.remove("hidden");render()};$("#backHome").onclick=()=>{$("#app").classList.add("hidden");$("#home").classList.remove("hidden")};$("#pdfBtn").onclick=pdf;$("#loadDemo").onclick=()=>{state.profile={name:"Mochilão Europa de Trem",traveler:"Vitor",start:"2027-10-20",end:"2027-11-10",currency:"EUR",daily:85};state.cities=[["Lisboa","Portugal",38.7223,-9.1393],["Barcelona","Espanha",41.3874,2.1686],["Zurique","Suíça",47.3769,8.5417],["Paris","França",48.8566,2.3522],["Berlim","Alemanha",52.52,13.405],["Copenhague","Dinamarca",55.6761,12.5683],["Veneza","Itália",45.4408,12.3155]].map((c,i)=>({id:crypto.randomUUID(),name:c[0],country:c[1],lat:c[2],lng:c[3],start:"",end:"",notes:""}));state.expenses=[{id:crypto.randomUUID(),desc:"Hostel",cat:"Hospedagem",amount:180,date:""},{id:crypto.randomUUID(),desc:"Trem",cat:"Transporte",amount:220,date:""}];save(state);toast("Exemplo carregado. Clique em Abrir aplicativo.")};
+if("serviceWorker"in navigator)navigator.serviceWorker.register("./service-worker.js?v=final-2").catch(()=>{});

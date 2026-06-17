@@ -1,35 +1,23 @@
-# Mochilão Europa
+# Roteiro Europa — Versão Final
 
-Aplicativo estático para GitHub Pages, feito em HTML, CSS e JavaScript puro.
+## Instalação no GitHub Pages
 
-## Recursos
+1. Extraia o ZIP.
+2. Envie **todos os arquivos extraídos** para a raiz do repositório `Roteiro-Europa`.
+3. Confirme que o arquivo `index.html` novo substituiu o antigo.
+4. Aguarde 1 a 3 minutos.
+5. Acesse:
+   `https://vitorhfonseca.github.io/Roteiro-Europa/?v=final-2`
 
-- Dashboard da viagem
-- Planejador de roteiro por cidades
-- Mapa com Leaflet + OpenStreetMap
-- Controle de orçamento
-- Checklist
-- Diário de viagem
-- Exportação PDF com jsPDF
-- Backup/importação JSON
-- PWA com service worker
-- Dados 100% locais no navegador via LocalStorage
+## Importante
 
-## Como publicar no GitHub Pages
+Se ainda aparecer a tela antiga:
+- Abra em aba anônima.
+- Ou use Ctrl + F5.
+- Ou no Chrome: DevTools > Application > Service Workers > Unregister.
+- Depois limpe Cache Storage do site.
 
-1. Crie um repositório no GitHub.
-2. Envie todos os arquivos deste ZIP para a raiz do repositório.
-3. Vá em **Settings > Pages**.
-4. Em **Build and deployment**, selecione:
-   - Source: `Deploy from a branch`
-   - Branch: `main`
-   - Folder: `/root`
-5. Salve e aguarde o link do GitHub Pages.
+Esta versão tem uma tela inicial com a frase:
+`VERSÃO FINAL ATIVA • LOCALSTORAGE • GITHUB PAGES`
 
-## Observações
-
-- O app não usa backend.
-- O login foi removido porque o modo escolhido foi offline/local.
-- O mapa usa Leaflet via CDN e tiles do OpenStreetMap.
-- A exportação PDF usa jsPDF via CDN.
-- Os dados ficam apenas no navegador onde o usuário usa o app.
+Se essa frase não aparecer, o GitHub Pages ainda está servindo os arquivos antigos.

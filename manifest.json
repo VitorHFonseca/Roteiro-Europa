@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Admin Login Fix",
+  "name": "Roteiro Europa Admin Entrar Direto",
   "short_name": "Europa Admin",
-  "description": "Correção definitiva do login ADM preconfigurado.",
-  "start_url": "./?v=admin-login-fix-2",
+  "description": "Login abre direto no painel: ADM vai para Admin, usuário vai para roteiro.",
+  "start_url": "./?v=admin-entrar-direto-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

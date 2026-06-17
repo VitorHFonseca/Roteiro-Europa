@@ -1,9 +1,11 @@
-# Roteiro Europa — Login ADM Corrigido
+# Roteiro Europa — Admin Entrar Direto
 
 ## Correção
 
-A versão anterior não importava corretamente a função que cria os usuários padrão.
-Esta versão corrige isso e também adiciona fallback para login do ADM caso exista LocalStorage antigo/corrompido.
+- Ao logar como `admin`, abre direto na aba **Admin**.
+- Ao logar como `usuario`, abre direto no **Roteiro + Mapa**.
+- Removido o passo intermediário que deixava a tela parecendo presa no login.
+- Mantidos os usuários padrão.
 
 ## Login ADM
 
@@ -29,10 +31,10 @@ Senha:
 
 Envie todos os arquivos para a raiz do GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=admin-login-fix-2`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=admin-entrar-direto-1`
 
-Se ainda carregar versão antiga:
+Se ainda carregar a tela antiga:
 
-1. Use Ctrl + F5.
-2. Abra em aba anônima.
-3. Ou limpe DevTools > Application > Service Workers > Unregister.
+1. Ctrl + F5
+2. Aba anônima
+3. DevTools > Application > Service Workers > Unregister

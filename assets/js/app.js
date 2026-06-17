@@ -37,6 +37,20 @@ function showApp(){
   render();
 }
 
+function enterAfterAuth(){
+  section = session?.role === "admin" ? "admin" : "roteiro";
+
+  try{
+    showApp();
+  }catch(err){
+    console.error("Erro ao abrir o app depois do login:", err);
+    toast("Login feito, mas houve erro ao abrir o painel. Recarregue a página.");
+    $("#loginScreen").classList.add("hidden");
+    $("#hero").classList.add("hidden");
+    $("#app").classList.remove("hidden");
+  }
+}
+
 function renderStrips(){
   const html = routeStrip(state?.route || []);
   const heroStrip = $("#heroRouteStrip");
@@ -636,7 +650,7 @@ $("#loginForm").addEventListener("submit", async e => {
   try{
     session = await login({user:$("#loginUser").value, password:$("#loginPass").value});
     state = loadState(session.id);
-    showHero();
+    enterAfterAuth();
     toast("Login realizado.");
   }catch(err){ toast(err.message); }
 });
@@ -646,14 +660,16 @@ $("#registerForm").addEventListener("submit", async e => {
   try{
     session = await register({name:$("#regName").value, user:$("#regUser").value, password:$("#regPass").value});
     state = loadState(session.id);
-    showHero();
+    enterAfterAuth();
     toast(session.role === "admin" ? "Conta ADM criada." : "Conta criada.");
   }catch(err){ toast(err.message); }
 });
 
 
-$("#openAppBtn").onclick = showApp;
-$("#logoutBtn").onclick = () => {
+const openAppButton = $("#openAppBtn");
+if(openAppButton) openAppButton.onclick = showApp;
+const logoutButton = $("#logoutBtn");
+if(logoutButton) logoutButton.onclick = () => {
   logout();
   session = null; state = null;
   showLogin();
@@ -661,7 +677,7 @@ $("#logoutBtn").onclick = () => {
 };
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=admin-login-fix-2").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=admin-entrar-direto-1").catch(()=>{});
 }
 
 async function boot(){
@@ -675,7 +691,7 @@ async function boot(){
   session = getSession();
   state = session ? loadState(session.id) : null;
 
-  if(session && state) showHero();
+  if(session && state) enterAfterAuth();
   else showLogin();
 
   renderStrips();

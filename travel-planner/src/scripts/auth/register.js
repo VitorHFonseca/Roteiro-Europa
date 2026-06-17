@@ -1,0 +1,10 @@
+travel-planner/
+│
+├── index.html
+├── login.html
+├── dashboard.html
+├── styles/
+│   └── styles.css
+├── scripts/
+│   └── app.js
+└── README.md

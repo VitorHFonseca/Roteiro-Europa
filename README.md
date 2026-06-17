@@ -1,17 +1,13 @@
-# Roteiro Europa — Admin sem faixas da tela inicial
+# Roteiro Europa — Login ADM Corrigido
 
 ## Correção
 
-Removidos diretamente do HTML:
+A versão anterior não importava corretamente a função que cria os usuários padrão.
+Esta versão corrige isso e também adiciona fallback para login do ADM caso exista LocalStorage antigo/corrompido.
 
-- selo superior/pill acima do título
-- faixa inferior com rota/cidades
+## Login ADM
 
-Também foi ajustado o JavaScript para não tentar preencher esses elementos removidos.
-
-## Logins
-
-ADM:
+Usuário:
 
 `admin`
 
@@ -19,7 +15,9 @@ Senha:
 
 `Admin@2026!`
 
-Usuário comum:
+## Usuário comum
+
+Usuário:
 
 `usuario`
 
@@ -31,6 +29,10 @@ Senha:
 
 Envie todos os arquivos para a raiz do GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=admin-fix-sem-faixas-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=admin-login-fix-2`
 
-Se aparecer a versão antiga, use Ctrl + F5 ou limpe o service worker.
+Se ainda carregar versão antiga:
+
+1. Use Ctrl + F5.
+2. Abra em aba anônima.
+3. Ou limpe DevTools > Application > Service Workers > Unregister.

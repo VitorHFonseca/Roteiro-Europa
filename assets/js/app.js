@@ -1,5 +1,5 @@
 import { DB, RATES } from "./data.js";
-import { register, login, logout, getSession, loadState, saveState, adminListUsers, adminCreateUser, adminSetUserStatus, adminSetUserRole, adminResetPassword } from "./store.js";
+import { register, login, logout, getSession, loadState, saveState, initializePresetUsers, adminListUsers, adminCreateUser, adminSetUserStatus, adminSetUserRole, adminResetPassword } from "./store.js";
 import { $, $$, toast, saved, uid, euro } from "./ui.js";
 import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
 import { generateAI } from "./ai.js";
@@ -661,11 +661,17 @@ $("#logoutBtn").onclick = () => {
 };
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=admin-fix-sem-faixas-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=admin-login-fix-2").catch(()=>{});
 }
 
 async function boot(){
-  await initializePresetUsers();
+  try{
+    await initializePresetUsers();
+  }catch(err){
+    console.error("Erro ao inicializar usuários padrão:", err);
+    toast("Erro ao preparar login. Atualize a página.");
+  }
+
   session = getSession();
   state = session ? loadState(session.id) : null;
 

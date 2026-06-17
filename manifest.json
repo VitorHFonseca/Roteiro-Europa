@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Admin Sem Faixas",
+  "name": "Roteiro Europa Admin Login Fix",
   "short_name": "Europa Admin",
-  "description": "Versão sem selo superior e sem faixa de rota na tela inicial.",
-  "start_url": "./?v=admin-fix-sem-faixas-1",
+  "description": "Correção definitiva do login ADM preconfigurado.",
+  "start_url": "./?v=admin-login-fix-2",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

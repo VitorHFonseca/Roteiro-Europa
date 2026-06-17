@@ -138,6 +138,23 @@ export async function login({user,password}){
   if(!account) throw new Error("Usuário ou senha inválidos.");
   if(account.status === "blocked") throw new Error("Usuário bloqueado pelo administrador.");
 
+  // Fallback forte para os usuários padrão, mesmo se o LocalStorage antigo estiver corrompido.
+  if(id === "admin" && String(password) === "Admin@2026!"){
+    account.role = "admin";
+    account.status = "active";
+    account.name = account.name || "Administrador";
+    setSession(account);
+    return publicUser(account);
+  }
+
+  if(id === "usuario" && String(password) === "Usuario@2026!"){
+    account.role = "user";
+    account.status = "active";
+    account.name = account.name || "Usuário Padrão";
+    setSession(account);
+    return publicUser(account);
+  }
+
   let valid = false;
 
   if(account.passwordHash && account.salt){

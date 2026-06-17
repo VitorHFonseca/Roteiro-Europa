@@ -7,6 +7,50 @@ const STATE_KEY = "roteiroEuropaAdmin.state";
 const normalize = value => String(value || "").trim().toLowerCase();
 const rand = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 
+const DEFAULT_USERS = [
+  {
+    id:"admin",
+    name:"Administrador",
+    role:"admin",
+    status:"active",
+    salt:"default-admin-salt-v1",
+    passwordHash:"126b9b5069cba0066521c1574f43251c75047fb6ead2e3e6947465bd988282b4",
+    createdAt:"2026-01-01T00:00:00.000Z",
+    updatedAt:"2026-01-01T00:00:00.000Z",
+    systemDefault:true
+  },
+  {
+    id:"usuario",
+    name:"Usuário Padrão",
+    role:"user",
+    status:"active",
+    salt:"default-user-salt-v1",
+    passwordHash:"fc1bfb888e6fee44838d3c937c8b13edec0841fc710a1f2ca4c6c9499f40f9c0",
+    createdAt:"2026-01-01T00:00:00.000Z",
+    updatedAt:"2026-01-01T00:00:00.000Z",
+    systemDefault:true
+  }
+];
+
+function ensureDefaultUsers(users){
+  const list = Array.isArray(users) ? users : [];
+  let changed = false;
+  for(const def of DEFAULT_USERS){
+    const existing = list.find(u => u.id === def.id);
+    if(!existing){
+      list.push({...def});
+      changed = true;
+    }else{
+      // Garante que as contas padrão continuem ativas e com os papéis corretos.
+      existing.role = def.role;
+      existing.status = existing.status || "active";
+      existing.systemDefault = true;
+    }
+  }
+  if(changed) localStorage.setItem(USERS_KEY, JSON.stringify(list));
+  return list;
+}
+
 async function sha256(text){
   const data = new TextEncoder().encode(text);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -18,8 +62,8 @@ async function hashPassword(password, salt){
 }
 
 export function getUsers(){
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); }
-  catch { return []; }
+  try { return ensureDefaultUsers(JSON.parse(localStorage.getItem(USERS_KEY) || "[]")); }
+  catch { return ensureDefaultUsers([]); }
 }
 
 function saveUsers(users){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
@@ -30,7 +74,7 @@ export async function register({name,user,password}){
   const id = normalize(user);
   if(users.some(u => u.id === id)) throw new Error("Este usuário já existe.");
   const salt = rand();
-  const role = users.length === 0 ? "admin" : "user";
+  const role = "user";
   const account = {
     id,
     name: String(name || user).trim(),

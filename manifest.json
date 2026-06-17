@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Segurança Admin",
+  "name": "Roteiro Europa Admin Pré-configurado",
   "short_name": "Europa Admin",
-  "description": "Planner com usuário ADM, gestão de usuários, conexões mascaradas e testes de API.",
-  "start_url": "./?v=seguranca-admin-1",
+  "description": "Planner com ADM e usuário padrão já cadastrados, sem modo demonstração.",
+  "start_url": "./?v=admin-preconfigurado-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

@@ -2,58 +2,108 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0f172a">
-  <title>Mochilão Europa — App Final</title>
-  <link rel="manifest" href="./manifest.json?v=final-2">
-  <link rel="stylesheet" href="./assets/css/style.css?v=final-2">
-  <link rel="icon" href="./assets/icons/icon.svg?v=final-2">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <meta name="theme-color" content="#09090f">
+  <title>Mochilão Europa Online IA</title>
+
+  <link rel="manifest" href="./manifest.json?v=online-ia-1">
+  <link rel="icon" href="./assets/icons/icon.svg?v=online-ia-1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,700&family=DM+Sans:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/style.css?v=online-ia-1">
 </head>
 <body>
-  <header class="hero" id="home">
-    <div class="hero-card">
-      <span class="pill">✅ VERSÃO FINAL ATIVA • LOCALSTORAGE • GITHUB PAGES</span>
-      <h1>Mochilão Europa</h1>
-      <p>Aplicativo completo offline para planejar roteiro, mapa, orçamento, checklist, diário e exportar PDF.</p>
-      <div class="actions">
-        <button class="primary" id="openApp">Abrir aplicativo</button>
-        <button class="secondary" id="loadDemo">Carregar exemplo</button>
+  <div class="save-indicator" id="saveIndicator">💾 Salvo</div>
+  <div class="toast" id="toast"></div>
+
+  <section id="loginScreen" class="login-screen">
+    <div class="login-orb orb-a"></div>
+    <div class="login-orb orb-b"></div>
+
+    <div class="login-layout">
+      <div class="login-copy">
+        <span class="hero-badge">🍂 Mochilão Europa · Online · IA</span>
+        <h1>Outono na<br><em>Europa</em></h1>
+        <p>Um planner visual inspirado no seu HTML: roteiro, mapa, países, trens, orçamento, checklist, mochila, moedas, frases, diário e recomendações com IA.</p>
+        <div class="route-strip" id="loginRouteStrip"></div>
       </div>
-      <small class="version">Versão final 2.0 — se você está vendo esta tela, a atualização funcionou.</small>
-    </div>
-  </header>
 
-  <main class="app hidden" id="app">
-    <aside>
-      <div class="logo">🌍 <strong>Mochilão Europa</strong></div>
-      <button class="nav active" data-page="dashboard">Dashboard</button>
-      <button class="nav" data-page="route">Roteiro</button>
-      <button class="nav" data-page="map">Mapa</button>
-      <button class="nav" data-page="budget">Orçamento</button>
-      <button class="nav" data-page="checklist">Checklist</button>
-      <button class="nav" data-page="diary">Diário</button>
-      <button class="nav" data-page="settings">Configurações</button>
-      <button class="nav export" id="pdfBtn">Exportar PDF</button>
-    </aside>
-
-    <section class="content">
-      <div class="top">
-        <div>
-          <span class="pill dark">App offline</span>
-          <h2 id="title">Dashboard</h2>
+      <div class="login-card">
+        <div class="tabs">
+          <button id="tabLogin" class="tab active">Entrar</button>
+          <button id="tabRegister" class="tab">Criar conta</button>
         </div>
-        <button class="secondary" id="backHome">Voltar ao início</button>
-      </div>
 
-      <div id="view"></div>
-    </section>
+        <form id="loginForm" class="auth-form">
+          <h2>Entrar no app</h2>
+          <p class="muted">Conta local para organizar sua viagem neste navegador.</p>
+          <label>Usuário</label>
+          <input id="loginUser" required autocomplete="username" placeholder="ex.: vitor">
+          <label>Senha</label>
+          <input id="loginPass" required type="password" autocomplete="current-password" placeholder="••••••••">
+          <button class="primary-btn full">Entrar</button>
+          <button type="button" id="demoBtn" class="ghost-btn full">Entrar com roteiro exemplo</button>
+        </form>
+
+        <form id="registerForm" class="auth-form hidden">
+          <h2>Criar conta local</h2>
+          <p class="muted">A conta local separa os dados de cada viajante.</p>
+          <label>Nome</label>
+          <input id="regName" required placeholder="Seu nome">
+          <label>Usuário</label>
+          <input id="regUser" required autocomplete="username" placeholder="ex.: vitor">
+          <label>Senha</label>
+          <input id="regPass" required minlength="4" type="password" autocomplete="new-password" placeholder="mínimo 4 caracteres">
+          <button class="primary-btn full">Criar e entrar</button>
+        </form>
+
+        <small class="auth-note">🔐 Para IA real, configure um endpoint seguro em <strong>Online & IA</strong>. Não coloque chave de API diretamente no navegador.</small>
+      </div>
+    </div>
+  </section>
+
+  <section id="hero" class="hero hidden">
+    <div class="hero-bg"></div>
+    <div class="hero-topbar">
+      <div class="mini-brand">🌍 <strong>Mochilão Europa</strong></div>
+      <div class="hero-actions">
+        <button id="openAppBtn" class="primary-btn">Abrir planner</button>
+        <button id="logoutBtn" class="ghost-dark">Sair</button>
+      </div>
+    </div>
+    <span class="hero-badge">🍂 Mochilão · Outubro · Europa de Trem</span>
+    <h1>Outono na<br><em>Europa</em></h1>
+    <p class="hero-sub">Roteiro completo, interativo, com IA online opcional e salvamento automático.</p>
+    <div class="route-strip" id="heroRouteStrip"></div>
+    <div class="scroll-hint"><span>explorar</span><div class="scroll-dot"></div></div>
+  </section>
+
+  <main id="app" class="app hidden">
+    <nav class="main-nav">
+      <div class="nav-inner">
+        <span class="nav-title">Europa 🍂</span>
+        <button class="nav-btn active" data-section="roteiro">📅 Roteiro</button>
+        <button class="nav-btn" data-section="mapa">🗺️ Mapa</button>
+        <button class="nav-btn" data-section="montador">✏️ Montar</button>
+        <button class="nav-btn" data-section="ia">🤖 IA <span class="badge-new">ONLINE</span></button>
+        <button class="nav-btn" data-section="paises">🌍 Países</button>
+        <button class="nav-btn" data-section="trens">🚆 Trens</button>
+        <button class="nav-btn" data-section="orcamento">💶 Orçamento</button>
+        <button class="nav-btn" data-section="dicas">💡 Dicas</button>
+        <button class="nav-btn" data-section="checklist">✅ Checklist</button>
+        <button class="nav-btn" data-section="mochila">🎒 Mochila</button>
+        <button class="nav-btn" data-section="moedas">💱 Moedas</button>
+        <button class="nav-btn" data-section="frases">🗣️ Frases</button>
+        <button class="nav-btn" data-section="diario">📖 Diário</button>
+        <button class="nav-btn" data-section="online">☁️ Online</button>
+      </div>
+    </nav>
+
+    <section id="view" class="section active"></section>
   </main>
 
-  <div id="toast"></div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./assets/js/app.js?v=final-2"></script>
+  <script type="module" src="./assets/js/app.js?v=online-ia-1"></script>
 </body>
 </html>

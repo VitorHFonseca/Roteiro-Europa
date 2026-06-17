@@ -1,0 +1,11 @@
+{
+  "name": "roteiro-europa-online-ia",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {}
+}

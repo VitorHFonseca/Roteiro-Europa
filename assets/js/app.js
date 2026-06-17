@@ -1,36 +1,322 @@
-import{load,save,wipe}from"./core/storage.js?v=final-2";import{known,findCity}from"./core/cities.js?v=final-2";
-let state=load(),page="dashboard",map=null;
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],money=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:state.profile.currency||"EUR"}).format(v||0),esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-function toast(t){$("#toast").textContent=t;$("#toast").classList.add("show");setTimeout(()=>$("#toast").classList.remove("show"),2200)}
-function persist(t="Salvo"){save(state);render();toast(t)}
-function title(){return{dashboard:"Dashboard",route:"Roteiro",map:"Mapa",budget:"Orçamento",checklist:"Checklist",diary:"Diário",settings:"Configurações"}[page]}
-function render(){if($("#app").classList.contains("hidden"))return;$("#title").textContent=title();$$(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===page));$("#view").innerHTML=views[page]();bind();if(page==="map")setTimeout(drawMap,100)}
-const views={
-dashboard:()=>{let total=state.expenses.reduce((s,e)=>s+Number(e.amount),0),countries=new Set(state.cities.map(c=>c.country).filter(Boolean));return`<div class="grid cols4"><div class="card stat"><span>Cidades</span><strong>${state.cities.length}</strong></div><div class="card stat"><span>Países</span><strong>${countries.size}</strong></div><div class="card stat"><span>Gastos</span><strong>${money(total)}</strong></div><div class="card stat"><span>Checklist</span><strong>${state.checks.filter(c=>c.done).length}/${state.checks.length}</strong></div></div><div class="grid cols2" style="margin-top:18px"><div class="card"><h3>Resumo</h3><p class="muted"><b>${esc(state.profile.name)}</b><br>Viajante: ${esc(state.profile.traveler)||"-"}<br>Período: ${state.profile.start||"-"} até ${state.profile.end||"-"}<br>Orçamento diário: ${money(Number(state.profile.daily||0))}</p></div><div class="card"><h3>Próximas cidades</h3>${state.cities.slice(0,6).map((c,i)=>`<p><b>${i+1}. ${esc(c.name)}</b><br><span class="muted">${esc(c.country)} • ${c.start||"-"} até ${c.end||"-"}</span></p>`).join("")||"<p class='muted'>Adicione cidades no roteiro.</p>"}</div></div>`},
-route:()=>`<div class="card"><h3>Adicionar cidade</h3><form id="cityForm" class="form"><div class="field"><label>Cidade</label><input id="city" list="cityList" required><datalist id="cityList">${known.map(c=>`<option value="${c[0]}">${c[0]} - ${c[1]}</option>`).join("")}</datalist></div><div class="field"><label>País</label><input id="country"></div><div class="field"><label>Chegada</label><input id="start" type="date"></div><div class="field"><label>Saída</label><input id="end" type="date"></div><div class="field wide"><label>Notas</label><textarea id="notes"></textarea></div><button class="primary">Adicionar</button></form></div><div class="card" style="margin-top:18px"><h3>Roteiro</h3><table><thead><tr><th>#</th><th>Cidade</th><th>Período</th><th>Notas</th><th>Ações</th></tr></thead><tbody>${state.cities.map((c,i)=>`<tr><td>${i+1}</td><td><b>${esc(c.name)}</b><br><span class="muted">${esc(c.country)}</span></td><td>${c.start||"-"}<br>${c.end||"-"}</td><td>${esc(c.notes)}</td><td class="row"><button class="secondary" data-up="${c.id}">↑</button><button class="secondary" data-down="${c.id}">↓</button><button class="danger" data-delcity="${c.id}">Excluir</button></td></tr>`).join("")||"<tr><td colspan='5'>Nenhuma cidade.</td></tr>"}</tbody></table></div>`,
-map:()=>`<div class="grid cols3"><div class="card" style="grid-column:span 2"><h3>Mapa Leaflet / OpenStreetMap</h3><div id="mapBox" class="map"></div></div><div class="card"><h3>Ordem</h3><div class="list">${state.cities.map((c,i)=>`<div class="item"><b>${i+1}. ${esc(c.name)}</b><span class="muted">${esc(c.country)}</span></div>`).join("")||"<p class='muted'>Sem cidades.</p>"}</div></div></div>`,
-budget:()=>{let cats=["Hospedagem","Transporte","Alimentação","Passeios","Compras","Emergência","Outros"];let total=state.expenses.reduce((s,e)=>s+Number(e.amount),0);return`<div class="grid cols3"><div class="card stat"><span>Total</span><strong>${money(total)}</strong></div><div class="card stat"><span>Lançamentos</span><strong>${state.expenses.length}</strong></div><div class="card stat"><span>Média</span><strong>${money(total/Math.max(1,state.expenses.length))}</strong></div></div><div class="card" style="margin-top:18px"><h3>Novo gasto</h3><form id="expenseForm" class="form"><div class="field"><label>Descrição</label><input id="desc" required></div><div class="field"><label>Categoria</label><select id="cat">${cats.map(c=>`<option>${c}</option>`).join("")}</select></div><div class="field"><label>Valor</label><input id="amount" type="number" step=".01" required></div><div class="field"><label>Data</label><input id="date" type="date"></div><button class="primary">Adicionar</button></form></div><div class="card" style="margin-top:18px"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th></th></tr></thead><tbody>${state.expenses.map(e=>`<tr><td>${e.date||"-"}</td><td>${esc(e.desc)}</td><td>${esc(e.cat)}</td><td>${money(Number(e.amount))}</td><td><button class="danger" data-delexp="${e.id}">Excluir</button></td></tr>`).join("")||"<tr><td colspan='5'>Nenhum gasto.</td></tr>"}</tbody></table></div>`},
-checklist:()=>{let cats=["Documentos","Reservas","Transporte","Mochila","Dinheiro","Saúde","Tecnologia","Outros"];return`<div class="card"><h3>Checklist</h3><form id="checkForm" class="form"><div class="field"><label>Item</label><input id="checkText" required></div><div class="field"><label>Categoria</label><select id="checkCat">${cats.map(c=>`<option>${c}</option>`).join("")}</select></div><button class="primary">Adicionar</button></form></div><div class="card" style="margin-top:18px"><div class="list">${state.checks.map(c=>`<div class="item ${c.done?"done":""}"><label><input type="checkbox" data-toggle="${c.id}" ${c.done?"checked":""}> <b>${esc(c.text)}</b><br><span class="muted">${esc(c.cat)}</span></label><button class="danger" data-delcheck="${c.id}">Excluir</button></div>`).join("")}</div></div>`},
-diary:()=>`<div class="card"><h3>Diário de viagem</h3><form id="diaryForm" class="form"><div class="field"><label>Data</label><input id="dDate" type="date"></div><div class="field"><label>Humor</label><select id="mood"><option>😍 Incrível</option><option>🙂 Bom</option><option>😐 Normal</option><option>😴 Cansativo</option><option>🤯 Caótico</option></select></div><div class="field wide"><label>Título</label><input id="dTitle" required></div><div class="field wide"><label>Texto</label><textarea id="dText" required></textarea></div><button class="primary">Salvar</button></form></div><div class="card" style="margin-top:18px"><div class="list">${state.diary.map(d=>`<div class="item"><div><b>${esc(d.title)}</b><p class="muted">${d.date||"-"} • ${esc(d.mood)}</p><p>${esc(d.text)}</p></div><button class="danger" data-deldiary="${d.id}">Excluir</button></div>`).join("")||"<p class='muted'>Nenhuma entrada.</p>"}</div></div>`,
-settings:()=>`<div class="grid cols2"><div class="card"><h3>Dados da viagem</h3><form id="profileForm" class="form"><div class="field"><label>Nome</label><input id="pName" value="${esc(state.profile.name)}"></div><div class="field"><label>Viajante</label><input id="traveler" value="${esc(state.profile.traveler)}"></div><div class="field"><label>Início</label><input id="pStart" type="date" value="${state.profile.start}"></div><div class="field"><label>Fim</label><input id="pEnd" type="date" value="${state.profile.end}"></div><div class="field"><label>Moeda</label><select id="cur"><option>EUR</option><option>BRL</option><option>USD</option><option>GBP</option></select></div><div class="field"><label>Orçamento diário</label><input id="daily" type="number" value="${state.profile.daily}"></div><button class="primary">Salvar</button></form></div><div class="card"><h3>Dados locais</h3><p class="muted">Tudo fica salvo apenas neste navegador.</p><div class="row"><button class="secondary" id="backup">Backup JSON</button><button class="secondary" id="import">Importar JSON</button><input class="hidden" type="file" id="file" accept="application/json"><button class="danger" id="wipe">Apagar tudo</button></div></div></div>`
-};
-function bind(){
-$("#cityForm")?.addEventListener("submit",e=>{e.preventDefault();let k=findCity($("#city").value),c={id:crypto.randomUUID(),name:$("#city").value,country:$("#country").value||k?.[1]||"",start:$("#start").value,end:$("#end").value,notes:$("#notes").value,lat:k?.[2]??null,lng:k?.[3]??null};state.cities.push(c);persist("Cidade adicionada")});
-$$("[data-delcity]").forEach(b=>b.onclick=()=>{state.cities=state.cities.filter(c=>c.id!==b.dataset.delcity);persist("Cidade excluída")});
-$$("[data-up],[data-down]").forEach(b=>b.onclick=()=>{let id=b.dataset.up||b.dataset.down,i=state.cities.findIndex(c=>c.id===id),n=i+(b.dataset.up?-1:1);if(n<0||n>=state.cities.length)return;let [x]=state.cities.splice(i,1);state.cities.splice(n,0,x);persist("Ordem alterada")});
-$("#expenseForm")?.addEventListener("submit",e=>{e.preventDefault();state.expenses.push({id:crypto.randomUUID(),desc:$("#desc").value,cat:$("#cat").value,amount:Number($("#amount").value),date:$("#date").value});persist("Gasto adicionado")});
-$$("[data-delexp]").forEach(b=>b.onclick=()=>{state.expenses=state.expenses.filter(e=>e.id!==b.dataset.delexp);persist("Gasto excluído")});
-$("#checkForm")?.addEventListener("submit",e=>{e.preventDefault();state.checks.push({id:crypto.randomUUID(),text:$("#checkText").value,cat:$("#checkCat").value,done:false});persist("Item adicionado")});
-$$("[data-toggle]").forEach(b=>b.onchange=()=>{let c=state.checks.find(x=>x.id===b.dataset.toggle);if(c)c.done=b.checked;persist("Checklist atualizado")});
-$$("[data-delcheck]").forEach(b=>b.onclick=()=>{state.checks=state.checks.filter(c=>c.id!==b.dataset.delcheck);persist("Item removido")});
-$("#diaryForm")?.addEventListener("submit",e=>{e.preventDefault();state.diary.unshift({id:crypto.randomUUID(),date:$("#dDate").value,mood:$("#mood").value,title:$("#dTitle").value,text:$("#dText").value});persist("Diário salvo")});
-$$("[data-deldiary]").forEach(b=>b.onclick=()=>{state.diary=state.diary.filter(d=>d.id!==b.dataset.deldiary);persist("Entrada excluída")});
-$("#profileForm")?.addEventListener("submit",e=>{e.preventDefault();state.profile={name:$("#pName").value,traveler:$("#traveler").value,start:$("#pStart").value,end:$("#pEnd").value,currency:$("#cur").value,daily:Number($("#daily").value)};persist("Configurações salvas")});if($("#cur"))$("#cur").value=state.profile.currency||"EUR";
-$("#backup")?.addEventListener("click",()=>{let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(state,null,2)],{type:"application/json"}));a.download="backup-mochilao-europa.json";a.click()});
-$("#import")?.addEventListener("click",()=>$("#file").click());$("#file")?.addEventListener("change",async e=>{let f=e.target.files[0];if(!f)return;state=JSON.parse(await f.text());persist("Backup importado")});
-$("#wipe")?.addEventListener("click",()=>{if(confirm("Apagar todos os dados?")){wipe();state=load();persist("Dados apagados")}});
+import { DB } from "./core/data.js";
+import { register, login, logout, getSession, demoSession, loadState, saveState } from "./core/store.js";
+import { $, $$, toast, saved, uid } from "./core/ui.js";
+import { routeStrip, roteiro, montador, mapa, ia, paises, trens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, cityChips } from "./modules/render.js";
+import { generateAI } from "./modules/ai.js";
+
+let session = getSession();
+let state = session ? loadState(session.id) : null;
+let section = "roteiro";
+
+const views = { roteiro, montador, mapa, ia, paises, trens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online };
+
+function persist(message){
+  saveState(session.id, state);
+  saved();
+  if(message) toast(message);
 }
-function drawMap(){let box=$("#mapBox");if(!box)return;if(!window.L){box.innerHTML="<p>Mapa precisa de internet na primeira carga.</p>";return}if(map){map.remove();map=null}map=L.map(box).setView([50,10],4);L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap"}).addTo(map);let pts=state.cities.filter(c=>c.lat&&c.lng).map(c=>[c.lat,c.lng,c]);pts.forEach((p,i)=>L.marker([p[0],p[1]]).addTo(map).bindPopup(`${i+1}. ${esc(p[2].name)}`));if(pts.length>1){let line=L.polyline(pts.map(p=>[p[0],p[1]]),{weight:4}).addTo(map);map.fitBounds(line.getBounds(),{padding:[30,30]})}else if(pts.length===1)map.setView([pts[0][0],pts[0][1]],8)}
-function pdf(){if(!window.jspdf?.jsPDF){alert("jsPDF não carregou");return}let doc=new jspdf.jsPDF(),y=15;let line=t=>{if(y>280){doc.addPage();y=15}doc.text(String(t),12,y);y+=7};doc.setFontSize(18);line(state.profile.name||"Mochilão Europa");doc.setFontSize(11);line(`Viajante: ${state.profile.traveler||"-"}`);line(`Período: ${state.profile.start||"-"} até ${state.profile.end||"-"}`);y+=4;line("ROTEIRO");state.cities.forEach((c,i)=>line(`${i+1}. ${c.name} - ${c.country} - ${c.start||"-"} a ${c.end||"-"}`));y+=4;line("GASTOS");state.expenses.forEach(e=>line(`${e.date||"-"} ${e.cat} ${e.desc} ${money(e.amount)}`));y+=4;line("CHECKLIST");state.checks.forEach(c=>line(`${c.done?"[x]":"[ ]"} ${c.cat} - ${c.text}`));y+=4;line("DIARIO");state.diary.forEach(d=>{line(`${d.date||"-"} ${d.title}`);line(d.text)});doc.save("mochilao-europa.pdf")}
-$$(".nav").forEach(b=>b.dataset.page&&(b.onclick=()=>{page=b.dataset.page;render()}));$("#openApp").onclick=()=>{$("#home").classList.add("hidden");$("#app").classList.remove("hidden");render()};$("#backHome").onclick=()=>{$("#app").classList.add("hidden");$("#home").classList.remove("hidden")};$("#pdfBtn").onclick=pdf;$("#loadDemo").onclick=()=>{state.profile={name:"Mochilão Europa de Trem",traveler:"Vitor",start:"2027-10-20",end:"2027-11-10",currency:"EUR",daily:85};state.cities=[["Lisboa","Portugal",38.7223,-9.1393],["Barcelona","Espanha",41.3874,2.1686],["Zurique","Suíça",47.3769,8.5417],["Paris","França",48.8566,2.3522],["Berlim","Alemanha",52.52,13.405],["Copenhague","Dinamarca",55.6761,12.5683],["Veneza","Itália",45.4408,12.3155]].map((c,i)=>({id:crypto.randomUUID(),name:c[0],country:c[1],lat:c[2],lng:c[3],start:"",end:"",notes:""}));state.expenses=[{id:crypto.randomUUID(),desc:"Hostel",cat:"Hospedagem",amount:180,date:""},{id:crypto.randomUUID(),desc:"Trem",cat:"Transporte",amount:220,date:""}];save(state);toast("Exemplo carregado. Clique em Abrir aplicativo.")};
-if("serviceWorker"in navigator)navigator.serviceWorker.register("./service-worker.js?v=final-2").catch(()=>{});
+
+function showLogin(){
+  $("#loginScreen").classList.remove("hidden");
+  $("#hero").classList.add("hidden");
+  $("#app").classList.add("hidden");
+}
+
+function showHero(){
+  $("#loginScreen").classList.add("hidden");
+  $("#hero").classList.remove("hidden");
+  $("#app").classList.add("hidden");
+  renderStrips();
+}
+
+function showApp(){
+  $("#loginScreen").classList.add("hidden");
+  $("#hero").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  render();
+}
+
+function renderStrips(){
+  const html = routeStrip(state?.route || []);
+  $("#heroRouteStrip").innerHTML = html;
+  $("#loginRouteStrip").innerHTML = html || routeStrip(["lisboa","barcelona","paris","berlim","veneza"]);
+}
+
+function render(){
+  renderStrips();
+  const view = views[section] || roteiro;
+  $("#view").className = section === "mapa" ? "section full-map active" : "section active";
+  $("#view").innerHTML = view(state);
+  $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === section));
+  bind();
+}
+
+function bind(){
+  $$("[data-section]").forEach(btn => btn.onclick = () => { section = btn.dataset.section; render(); });
+
+  $$("[data-open-day]").forEach(el => el.onclick = (e) => {
+    if(e.target.closest("[data-toggle-day]")) return;
+    state.openDay = state.openDay === el.dataset.openDay ? null : el.dataset.openDay;
+    persist();
+    render();
+  });
+
+  $$("[data-toggle-day]").forEach(btn => btn.onclick = (e) => {
+    e.stopPropagation();
+    const key = btn.dataset.toggleDay;
+    state.dayDone[key] = !state.dayDone[key];
+    persist("Dia atualizado.");
+    render();
+  });
+
+  $$("[data-day-note]").forEach(area => area.oninput = () => {
+    state.dayNotes[area.dataset.dayNote] = area.value;
+    persist();
+  });
+
+  $$("[data-city-chip]").forEach(chip => chip.onclick = () => {
+    const id = chip.dataset.cityChip;
+    if(state.route.includes(id)){
+      state.route = state.route.filter(x => x !== id);
+    }else{
+      state.route.push(id);
+      state.cityDays[id] ||= DB[id].sugDays || 2;
+    }
+    persist("Roteiro atualizado.");
+    render();
+  });
+
+  $$("[data-country]").forEach(btn => btn.onclick = () => {
+    $$("#countryFilter .filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    $("#cityPalette").innerHTML = cityChips(state, btn.dataset.country);
+    bind();
+  });
+
+  $$("[data-days-dec],[data-days-inc]").forEach(btn => btn.onclick = () => {
+    const id = btn.dataset.daysDec || btn.dataset.daysInc;
+    const delta = btn.dataset.daysInc ? 1 : -1;
+    state.cityDays[id] = Math.min(7, Math.max(1, (state.cityDays[id] || DB[id].sugDays || 2) + delta));
+    persist("Dias alterados.");
+    render();
+  });
+
+  $$("[data-move-up],[data-move-down]").forEach(btn => btn.onclick = () => {
+    const id = btn.dataset.moveUp || btn.dataset.moveDown;
+    const i = state.route.indexOf(id);
+    const j = i + (btn.dataset.moveUp ? -1 : 1);
+    if(j < 0 || j >= state.route.length) return;
+    [state.route[i], state.route[j]] = [state.route[j], state.route[i]];
+    persist("Ordem alterada.");
+    render();
+  });
+
+  $$("[data-remove-city]").forEach(btn => btn.onclick = () => {
+    state.route = state.route.filter(x => x !== btn.dataset.removeCity);
+    persist("Cidade removida.");
+    render();
+  });
+
+  $("[data-go-ai]")?.addEventListener("click", () => { section = "ia"; render(); });
+
+  $$("[data-map-city]").forEach(point => {
+    point.onclick = () => {
+      const id = point.dataset.mapCity;
+      const c = DB[id];
+      const tip = $("#mapTooltip");
+      tip.innerHTML = `
+        <div class="tooltip-name">${c.flag} ${c.name}</div>
+        <div class="tooltip-meta">${c.country} · ${c.vibe}</div>
+        <div class="tooltip-desc">${c.desc}</div>
+        <button class="primary-btn full" data-map-toggle="${id}">${state.route.includes(id) ? "Remover do roteiro" : "Adicionar ao roteiro"}</button>
+      `;
+      tip.style.left = Math.min(75, c.x + 2) + "%";
+      tip.style.top = Math.max(8, c.y - 12) + "%";
+      tip.classList.add("show");
+      tip.querySelector("[data-map-toggle]").onclick = () => {
+        if(state.route.includes(id)) state.route = state.route.filter(x => x !== id);
+        else state.route.push(id);
+        persist("Mapa atualizado.");
+        render();
+      };
+    };
+  });
+
+  $$("[data-ai-mode]").forEach(btn => btn.onclick = async () => {
+    const mode = btn.dataset.aiMode;
+    const question = $("#aiQuestion")?.value || "";
+    const content = $("#aiContent");
+    content.innerHTML = `<div class="ai-loading"><div class="ai-spinner"></div>Gerando sugestões...</div>`;
+    btn.disabled = true;
+    try{
+      const result = await generateAI(state, mode, question);
+      state.aiHistory.unshift(result);
+      state.aiHistory = state.aiHistory.slice(0,8);
+      persist("Sugestões geradas.");
+      render();
+    }catch(err){
+      content.innerHTML = `<div class="ai-card"><h4>Erro na IA online</h4><p class="muted">${err.message}</p><p class="muted">Confira o endpoint em Online & IA ou use sem endpoint para fallback local.</p></div>`;
+      toast("Erro na IA online.");
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+  $("#expenseForm")?.addEventListener("submit", e => {
+    e.preventDefault();
+    state.expenses.push({id:uid(), cat:$("#expenseCat").value || "Outros", desc:$("#expenseDesc").value || "Gasto", amount:Number($("#expenseAmount").value || 0)});
+    persist("Gasto adicionado.");
+    render();
+  });
+
+  $$("[data-del-expense]").forEach(btn => btn.onclick = () => {
+    state.expenses = state.expenses.filter(e => e.id !== btn.dataset.delExpense);
+    persist("Gasto removido.");
+    render();
+  });
+
+  $$("[data-toggle-check]").forEach(item => item.onclick = () => {
+    const x = state.checklist.find(c => c.id === item.dataset.toggleCheck);
+    if(x) x.done = !x.done;
+    persist("Checklist atualizado.");
+    render();
+  });
+
+  $$("[data-toggle-pack]").forEach(item => item.onclick = () => {
+    const x = state.pack.find(p => p.id === item.dataset.togglePack);
+    if(x) x.done = !x.done;
+    persist("Mochila atualizada.");
+    render();
+  });
+
+  $("#curFrom")?.addEventListener("change", e => { state.settings.currencyFrom = e.target.value; persist(); render(); });
+  $("#curTo")?.addEventListener("change", e => { state.settings.currencyTo = e.target.value; persist(); render(); });
+  $("#curAmount")?.addEventListener("input", e => updateCurrency());
+  $("#swapCurrency")?.addEventListener("click", () => {
+    [state.settings.currencyFrom,state.settings.currencyTo] = [state.settings.currencyTo,state.settings.currencyFrom];
+    persist();
+    render();
+  });
+  updateCurrency();
+
+  $$("[data-lang]").forEach(btn => btn.onclick = () => {
+    state.settings.phraseLang = btn.dataset.lang;
+    persist();
+    render();
+  });
+
+  $$("[data-copy]").forEach(card => card.onclick = async () => {
+    await navigator.clipboard?.writeText(card.dataset.copy);
+    toast("Frase copiada.");
+  });
+
+  $("#diaryForm")?.addEventListener("submit", e => {
+    e.preventDefault();
+    state.diary.unshift({id:uid(), city:$("#diaryCity").value, mood:$("#diaryMood").value, title:$("#diaryTitle").value, text:$("#diaryText").value, createdAt:new Date().toISOString()});
+    persist("Memória salva.");
+    render();
+  });
+
+  $$("[data-del-diary]").forEach(btn => btn.onclick = () => {
+    state.diary = state.diary.filter(d => d.id !== btn.dataset.delDiary);
+    persist("Memória removida.");
+    render();
+  });
+
+  $("#saveAiEndpoint")?.addEventListener("click", () => {
+    state.settings.aiEndpoint = $("#aiEndpoint").value.trim();
+    state.settings.syncEndpoint = $("#syncEndpoint")?.value.trim() || state.settings.syncEndpoint;
+    persist("Configuração online salva.");
+    render();
+  });
+
+  $("#pushSync")?.addEventListener("click", pushSync);
+  $("#pullSync")?.addEventListener("click", pullSync);
+}
+
+function updateCurrency(){
+  const amount = Number($("#curAmount")?.value || 100);
+  const result = $("#currencyResult");
+  if(!result) return;
+  const from = state.settings.currencyFrom || "EUR";
+  const to = state.settings.currencyTo || "BRL";
+  const rates = { EUR:1, BRL:5.9, USD:1.08, GBP:.86, CHF:.95, CZK:25.1, DKK:7.46, HUF:390 };
+  const value = amount * ((rates[to] || 1) / (rates[from] || 1));
+  result.textContent = `${value.toFixed(2)} ${to}`;
+}
+
+async function pushSync(){
+  const endpoint = $("#syncEndpoint").value.trim();
+  state.settings.syncEndpoint = endpoint;
+  if(!endpoint) return toast("Informe um endpoint de sincronização.");
+  const res = await fetch(endpoint, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({user:session.id,state})});
+  if(!res.ok) return toast("Erro ao enviar para nuvem.");
+  persist("Dados enviados para nuvem.");
+}
+
+async function pullSync(){
+  const endpoint = $("#syncEndpoint").value.trim();
+  state.settings.syncEndpoint = endpoint;
+  if(!endpoint) return toast("Informe um endpoint de sincronização.");
+  const res = await fetch(`${endpoint}?user=${encodeURIComponent(session.id)}`);
+  if(!res.ok) return toast("Erro ao baixar da nuvem.");
+  const data = await res.json();
+  if(data.state){
+    state = data.state;
+    persist("Dados baixados da nuvem.");
+    render();
+  }else toast("Endpoint não retornou state.");
+}
+
+$("#tabLogin").onclick = () => {
+  $("#tabLogin").classList.add("active"); $("#tabRegister").classList.remove("active");
+  $("#loginForm").classList.remove("hidden"); $("#registerForm").classList.add("hidden");
+};
+$("#tabRegister").onclick = () => {
+  $("#tabRegister").classList.add("active"); $("#tabLogin").classList.remove("active");
+  $("#registerForm").classList.remove("hidden"); $("#loginForm").classList.add("hidden");
+};
+
+$("#loginForm").addEventListener("submit", e => {
+  e.preventDefault();
+  try{
+    session = login({user:$("#loginUser").value, password:$("#loginPass").value});
+    state = loadState(session.id);
+    showHero();
+    toast("Login realizado.");
+  }catch(err){ toast(err.message); }
+});
+
+$("#registerForm").addEventListener("submit", e => {
+  e.preventDefault();
+  try{
+    session = register({name:$("#regName").value, user:$("#regUser").value, password:$("#regPass").value});
+    state = loadState(session.id);
+    showHero();
+    toast("Conta criada.");
+  }catch(err){ toast(err.message); }
+});
+
+$("#demoBtn").onclick = () => {
+  session = demoSession();
+  state = loadState(session.id);
+  showHero();
+  toast("Demonstração carregada.");
+};
+
+$("#openAppBtn").onclick = showApp;
+$("#logoutBtn").onclick = () => {
+  logout();
+  session = null; state = null;
+  showLogin();
+  toast("Você saiu.");
+};
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("./service-worker.js?v=online-ia-1").catch(()=>{});
+}
+
+if(session && state) showHero();
+else showLogin();
+
+renderStrips();

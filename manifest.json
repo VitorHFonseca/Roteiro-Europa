@@ -1,11 +1,12 @@
 {
-  "name": "Mochilão Europa Final",
-  "short_name": "Mochilão",
-  "start_url": "./?v=final-2",
+  "name": "Roteiro Europa Online IA",
+  "short_name": "Europa IA",
+  "description": "Planner de mochilão pela Europa com visual premium e IA online opcional.",
+  "start_url": "./?v=online-ia-1",
   "scope": "./",
   "display": "standalone",
-  "theme_color": "#0f172a",
-  "background_color": "#0f172a",
+  "background_color": "#09090f",
+  "theme_color": "#09090f",
   "icons": [
     {
       "src": "assets/icons/icon.svg",

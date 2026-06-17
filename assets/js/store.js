@@ -5,51 +5,6 @@ const SESSION_KEY = "roteiroEuropaAdmin.session";
 const STATE_KEY = "roteiroEuropaAdmin.state";
 
 const normalize = value => String(value || "").trim().toLowerCase();
-const rand = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-
-const DEFAULT_USERS = [
-  {
-    id:"admin",
-    name:"Administrador",
-    role:"admin",
-    status:"active",
-    salt:"default-admin-salt-v1",
-    passwordHash:"126b9b5069cba0066521c1574f43251c75047fb6ead2e3e6947465bd988282b4",
-    createdAt:"2026-01-01T00:00:00.000Z",
-    updatedAt:"2026-01-01T00:00:00.000Z",
-    systemDefault:true
-  },
-  {
-    id:"usuario",
-    name:"Usuário Padrão",
-    role:"user",
-    status:"active",
-    salt:"default-user-salt-v1",
-    passwordHash:"fc1bfb888e6fee44838d3c937c8b13edec0841fc710a1f2ca4c6c9499f40f9c0",
-    createdAt:"2026-01-01T00:00:00.000Z",
-    updatedAt:"2026-01-01T00:00:00.000Z",
-    systemDefault:true
-  }
-];
-
-function ensureDefaultUsers(users){
-  const list = Array.isArray(users) ? users : [];
-  let changed = false;
-  for(const def of DEFAULT_USERS){
-    const existing = list.find(u => u.id === def.id);
-    if(!existing){
-      list.push({...def});
-      changed = true;
-    }else{
-      // Garante que as contas padrão continuem ativas e com os papéis corretos.
-      existing.role = def.role;
-      existing.status = existing.status || "active";
-      existing.systemDefault = true;
-    }
-  }
-  if(changed) localStorage.setItem(USERS_KEY, JSON.stringify(list));
-  return list;
-}
 
 async function sha256(text){
   const data = new TextEncoder().encode(text);
@@ -61,30 +16,112 @@ async function hashPassword(password, salt){
   return sha256(`${salt}:${password}:roteiro-europa`);
 }
 
-export function getUsers(){
-  try { return ensureDefaultUsers(JSON.parse(localStorage.getItem(USERS_KEY) || "[]")); }
-  catch { return ensureDefaultUsers([]); }
+const PRESET_USERS = [
+  {
+    id:"admin",
+    name:"Administrador",
+    role:"admin",
+    status:"active",
+    password:"Admin@2026!",
+    salt:"preset-admin-salt-v2"
+  },
+  {
+    id:"usuario",
+    name:"Usuário Padrão",
+    role:"user",
+    status:"active",
+    password:"Usuario@2026!",
+    salt:"preset-user-salt-v2"
+  }
+];
+
+let seedPromise = null;
+
+async function ensurePresetUsers(){
+  if(seedPromise) return seedPromise;
+
+  seedPromise = (async () => {
+    const users = rawUsers();
+    let changed = false;
+
+    for(const preset of PRESET_USERS){
+      let existing = users.find(u => u.id === preset.id);
+
+      if(!existing){
+        existing = {
+          id:preset.id,
+          name:preset.name,
+          role:preset.role,
+          status:preset.status,
+          salt:preset.salt,
+          passwordHash: await hashPassword(preset.password, preset.salt),
+          createdAt:new Date().toISOString(),
+          updatedAt:new Date().toISOString(),
+          preset:true
+        };
+        users.push(existing);
+        changed = true;
+      }else{
+        existing.name ||= preset.name;
+        existing.role = preset.role;
+        existing.status = "active";
+        existing.salt = preset.salt;
+        existing.passwordHash = await hashPassword(preset.password, preset.salt);
+        existing.preset = true;
+        delete existing.pass;
+        existing.updatedAt = new Date().toISOString();
+        changed = true;
+      }
+    }
+
+    if(changed) saveUsers(users);
+    return users;
+  })();
+
+  return seedPromise;
+}
+
+function rawUsers(){
+  try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); }
+  catch { return []; }
 }
 
 function saveUsers(users){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
-export function hasUsers(){ return getUsers().length > 0; }
+
+export function getUsers(){
+  return rawUsers();
+}
+
+export async function initializePresetUsers(){
+  return ensurePresetUsers();
+}
+
+export function hasUsers(){
+  return getUsers().length > 0;
+}
 
 export async function register({name,user,password}){
-  const users = getUsers();
+  await ensurePresetUsers();
+
+  const users = rawUsers();
   const id = normalize(user);
-  if(users.some(u => u.id === id)) throw new Error("Este usuário já existe.");
-  const salt = rand();
-  const role = "user";
+
+  if(users.some(u => u.id === id)){
+    throw new Error("Este usuário já existe.");
+  }
+
+  const salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
   const account = {
     id,
     name: String(name || user).trim(),
-    role,
+    role:"user",
     status:"active",
     salt,
     passwordHash: await hashPassword(password, salt),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()
   };
+
   users.push(account);
   saveUsers(users);
   setSession(account);
@@ -92,21 +129,24 @@ export async function register({name,user,password}){
 }
 
 export async function login({user,password}){
+  await ensurePresetUsers();
+
   const id = normalize(user);
-  const users = getUsers();
+  const users = rawUsers();
   const account = users.find(u => u.id === id);
+
   if(!account) throw new Error("Usuário ou senha inválidos.");
   if(account.status === "blocked") throw new Error("Usuário bloqueado pelo administrador.");
 
   let valid = false;
+
   if(account.passwordHash && account.salt){
     valid = account.passwordHash === await hashPassword(password, account.salt);
   }else if(account.pass){
-    // compatibilidade com versões antigas que usavam base64
     const old = btoa(unescape(encodeURIComponent(String(password))));
     valid = account.pass === old;
     if(valid){
-      account.salt = rand();
+      account.salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
       account.passwordHash = await hashPassword(password, account.salt);
       delete account.pass;
       account.updatedAt = new Date().toISOString();
@@ -115,6 +155,7 @@ export async function login({user,password}){
   }
 
   if(!valid) throw new Error("Usuário ou senha inválidos.");
+
   setSession(account);
   return publicUser(account);
 }
@@ -125,12 +166,16 @@ function publicUser(account){
 
 export function setSession(account){
   localStorage.setItem(SESSION_KEY, JSON.stringify({
-    id:account.id, name:account.name, role:account.role || "user", loggedAt:new Date().toISOString()
+    id:account.id,
+    name:account.name,
+    role:account.role || "user",
+    loggedAt:new Date().toISOString()
   }));
 }
 
 export function demoSession(){
-  const account = { id:"demo", name:"Modo Demonstração", role:"user", status:"active" };
+  // mantido só para compatibilidade; botão foi removido.
+  const account = { id:"usuario", name:"Usuário Padrão", role:"user", status:"active" };
   setSession(account);
   return account;
 }
@@ -143,11 +188,16 @@ export function getSession(){
 export function logout(){ localStorage.removeItem(SESSION_KEY); }
 
 export async function adminCreateUser(adminSession,{name,user,password,role="user"}){
+  await ensurePresetUsers();
+
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode criar usuários.");
-  const users = getUsers();
+
+  const users = rawUsers();
   const id = normalize(user);
+
   if(users.some(u => u.id === id)) throw new Error("Este usuário já existe.");
-  const salt = rand();
+
+  const salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
   const account = {
     id,
     name: String(name || user).trim(),
@@ -158,6 +208,7 @@ export async function adminCreateUser(adminSession,{name,user,password,role="use
     createdAt:new Date().toISOString(),
     updatedAt:new Date().toISOString()
   };
+
   users.push(account);
   saveUsers(users);
   return publicUser(account);
@@ -165,18 +216,27 @@ export async function adminCreateUser(adminSession,{name,user,password,role="use
 
 export function adminListUsers(adminSession){
   if(adminSession?.role !== "admin") return [];
-  return getUsers().map(u => ({
-    id:u.id,name:u.name,role:u.role || "user",status:u.status || "active",
-    createdAt:u.createdAt,updatedAt:u.updatedAt
+  return rawUsers().map(u => ({
+    id:u.id,
+    name:u.name,
+    role:u.role || "user",
+    status:u.status || "active",
+    preset:!!u.preset,
+    createdAt:u.createdAt,
+    updatedAt:u.updatedAt
   }));
 }
 
 export function adminSetUserStatus(adminSession,userId,status){
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode alterar usuários.");
-  const users = getUsers();
+
+  const users = rawUsers();
   const u = users.find(x => x.id === userId);
+
   if(!u) throw new Error("Usuário não encontrado.");
+  if(u.id === "admin" && status === "blocked") throw new Error("O ADM padrão não pode ser bloqueado.");
   if(u.id === adminSession.id && status === "blocked") throw new Error("ADM não pode bloquear a própria conta.");
+
   u.status = status === "blocked" ? "blocked" : "active";
   u.updatedAt = new Date().toISOString();
   saveUsers(users);
@@ -184,30 +244,41 @@ export function adminSetUserStatus(adminSession,userId,status){
 
 export function adminSetUserRole(adminSession,userId,role){
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode alterar usuários.");
-  const users = getUsers();
+
+  const users = rawUsers();
   const u = users.find(x => x.id === userId);
+
   if(!u) throw new Error("Usuário não encontrado.");
+  if(u.id === "admin" && role !== "admin") throw new Error("O ADM padrão não pode perder perfil ADM.");
   if(u.id === adminSession.id && role !== "admin") throw new Error("ADM não pode remover o próprio perfil ADM.");
+
   u.role = role === "admin" ? "admin" : "user";
   u.updatedAt = new Date().toISOString();
   saveUsers(users);
 }
 
 export async function adminResetPassword(adminSession,userId,password){
+  await ensurePresetUsers();
+
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode resetar senha.");
-  const users = getUsers();
+
+  const users = rawUsers();
   const u = users.find(x => x.id === userId);
+
   if(!u) throw new Error("Usuário não encontrado.");
-  u.salt = rand();
+
+  u.salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
   u.passwordHash = await hashPassword(password,u.salt);
   delete u.pass;
   u.updatedAt = new Date().toISOString();
+  u.preset = false;
   saveUsers(users);
 }
 
 export function defaultState(){
   const checklist = [];
   Object.entries(CHECKS).forEach(([cat,items]) => items.forEach(text => checklist.push({id:crypto.randomUUID(), cat, text, done:false})));
+
   return {
     route:[...START_ROUTE],
     cityDays:{lisboa:2,barcelona:3,zurique:2,paris:4,berlim:3,copenhague:2,veneza:2},
@@ -263,4 +334,6 @@ export function saveState(userId,state){
   localStorage.setItem(`${STATE_KEY}.${userId}`, JSON.stringify(state));
 }
 
-export function clearState(userId){ localStorage.removeItem(`${STATE_KEY}.${userId}`); }
+export function clearState(userId){
+  localStorage.removeItem(`${STATE_KEY}.${userId}`);
+}

@@ -1,36 +1,36 @@
-# Roteiro Europa — Admin Pré-configurado
+# Roteiro Europa — Admin sem faixas da tela inicial
 
-## Contas iniciais
+## Correção
 
-### ADM
+Removidos diretamente do HTML:
 
-Usuário: `admin`  
-Senha: `Admin@2026!`
+- selo superior/pill acima do título
+- faixa inferior com rota/cidades
 
-### Usuário comum
+Também foi ajustado o JavaScript para não tentar preencher esses elementos removidos.
 
-Usuário: `usuario`  
-Senha: `Usuario@2026!`
+## Logins
 
-## Mudanças desta versão
+ADM:
 
-- ADM já vem cadastrado.
-- Usuário comum já vem cadastrado.
-- Botão **Entrar com roteiro exemplo** foi removido.
-- Novos usuários ainda podem se cadastrar pela tela **Criar conta**.
-- Novos usuários entram como perfil `user`, não como ADM.
-- ADM continua bloqueado para editar roteiro, veículos, hospedagens, orçamento, checklist e diário.
-- ADM gerencia usuários e conexões.
-- Chaves continuam mascaradas.
+`admin`
+
+Senha:
+
+`Admin@2026!`
+
+Usuário comum:
+
+`usuario`
+
+Senha:
+
+`Usuario@2026!`
 
 ## Publicar
 
 Envie todos os arquivos para a raiz do GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=admin-preconfigurado-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=admin-fix-sem-faixas-1`
 
-Se aparecer versão antiga, use Ctrl + F5 ou limpe o service worker.
-
-## Segurança
-
-Essas credenciais padrão são convenientes para começar, mas em produção altere a senha do ADM pela aba Admin depois do primeiro login. Nunca coloque `service_role` ou segredo real no frontend.
+Se aparecer a versão antiga, use Ctrl + F5 ou limpe o service worker.

@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Admin Pré-configurado",
+  "name": "Roteiro Europa Admin Sem Faixas",
   "short_name": "Europa Admin",
-  "description": "Planner com ADM e usuário padrão já cadastrados, sem modo demonstração.",
-  "start_url": "./?v=admin-preconfigurado-1",
+  "description": "Versão sem selo superior e sem faixa de rota na tela inicial.",
+  "start_url": "./?v=admin-fix-sem-faixas-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

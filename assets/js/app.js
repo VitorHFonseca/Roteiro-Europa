@@ -39,8 +39,11 @@ function showApp(){
 
 function renderStrips(){
   const html = routeStrip(state?.route || []);
-  $("#heroRouteStrip").innerHTML = html;
-  $("#loginRouteStrip").innerHTML = html || routeStrip(["lisboa","barcelona","paris","berlim","veneza"]);
+  const heroStrip = $("#heroRouteStrip");
+  const loginStrip = $("#loginRouteStrip");
+
+  if(heroStrip) heroStrip.innerHTML = html;
+  if(loginStrip) loginStrip.innerHTML = html || routeStrip(["lisboa","barcelona","paris","berlim","veneza"]);
 }
 
 function isAdmin(){ return session?.role === "admin"; }
@@ -658,9 +661,18 @@ $("#logoutBtn").onclick = () => {
 };
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=admin-preconfigurado-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=admin-fix-sem-faixas-1").catch(()=>{});
 }
 
-if(session && state) showHero();
-else showLogin();
-renderStrips();
+async function boot(){
+  await initializePresetUsers();
+  session = getSession();
+  state = session ? loadState(session.id) : null;
+
+  if(session && state) showHero();
+  else showLogin();
+
+  renderStrips();
+}
+
+boot();

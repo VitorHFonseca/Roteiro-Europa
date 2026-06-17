@@ -91,3 +91,21 @@ label{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:upperc
 .save-indicator{position:fixed;top:56px;right:12px;z-index:200;background:var(--green);color:#09090f;font-size:11px;font-weight:900;padding:4px 12px;border-radius:100px;opacity:0;transition:opacity .25s;font-family:'DM Mono';pointer-events:none}.save-indicator.show{opacity:1}.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(120px);background:var(--green);color:#09090f;padding:9px 22px;border-radius:100px;font-weight:900;font-size:12px;z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);max-width:90vw;text-align:center}.toast.show{transform:translateX(-50%) translateY(0)}.empty-state{text-align:center;color:var(--muted);padding:2rem;font-size:13px}.code-box{background:#05070d;border:1px solid var(--border);border-radius:12px;padding:.9rem;color:#d1d5db;overflow:auto;font-family:'DM Mono';font-size:12px;white-space:pre-wrap}
 @media(max-width:920px){.login-layout{grid-template-columns:1fr}.login-copy{text-align:center}.login-copy p{margin:0 auto}.grid.two,.grid.three,.grid.four{grid-template-columns:1fr}.city-palette,.check-grid,.pack-grid,.phrases-grid{grid-template-columns:1fr}.ai-input-row,.currency-grid{grid-template-columns:1fr}.hero-topbar{align-items:flex-start}.map-label{font-size:9px}.day-cost{display:none}}
 @media(max-width:620px){.login-screen,.hero{padding:1rem}.login-copy h1,.hero h1{font-size:3.6rem}.login-card{padding:1rem;border-radius:22px}.section{padding:2rem 1rem}.hero-topbar{position:relative;top:auto;left:auto;transform:none;width:100%;margin-bottom:2rem;flex-direction:column}.hero-actions{justify-content:center}.stats-grid{grid-template-columns:1fr}.map-canvas{height:460px;max-height:none}.map-label{display:none}}
+
+/* Leaflet + Hospedagens */
+.leaflet-map-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+#leafletMap{width:100%;height:640px;min-height:460px;background:#071020}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#1c1c26;color:#f0eff8;border:1px solid rgba(255,255,255,.12)}
+.leaflet-popup-content{margin:12px;font-family:'DM Sans',sans-serif}
+.map-popup-img{width:240px;height:125px;object-fit:cover;border-radius:12px;display:block;margin-bottom:8px}
+.map-popup-title{font-family:'Playfair Display',serif;font-size:18px;color:#fff;margin-bottom:2px}
+.map-popup-meta{color:rgba(240,239,248,.58);font-size:12px;margin-bottom:8px}
+.map-popup-btn{display:inline-flex;border:0;border-radius:999px;padding:7px 12px;background:var(--gold);color:#09090f;font-weight:800;cursor:pointer}
+.map-side-list{display:grid;gap:8px;max-height:640px;overflow:auto}
+.map-side-item{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--border);background:var(--card);border-radius:var(--radius-sm);padding:.75rem}
+.map-side-item.active{border-color:rgba(232,201,122,.5);background:rgba(232,201,122,.06)}
+.lodging-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+.lodging-head{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start;margin-bottom:.75rem}
+.lodging-title{font-size:1.05rem;font-weight:900}
+.lodging-meta{display:flex;gap:5px;flex-wrap:wrap;margin-top:.35rem}
+@media(max-width:920px){#leafletMap{height:520px}.map-side-list{max-height:none}}

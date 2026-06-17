@@ -1,36 +1,20 @@
-# Roteiro Europa Plus Veículos
+# Roteiro Europa — Mapa + Hospedagens
 
-Versão corrigida e melhorada.
+## Mudanças desta versão
 
-## Mudanças principais
+- Mapa trocado para Leaflet + OpenStreetMap.
+- Marcadores reais online, popup com imagem e botão adicionar/remover.
+- Linha do roteiro no mapa.
+- Nova aba **Hospedagens** ao lado de Veículos.
+- Hospedagens começam em branco.
+- Dá para adicionar, editar, excluir e autopreencher hospedagens.
+- Veículos continuam funcionando como antes.
+- Supabase continua na aba Online.
 
-- Imagens dos locais voltaram nos dias, países e popups do mapa
-- Mapa visual corrigido e responsivo
-- Aba Trens virou **Veículos**
-- A aba Veículos começa em branco
-- Dá para adicionar várias opções:
-  - Trem
-  - Avião
-  - Ônibus
-  - Carro
-  - Ferry
-  - Metrô
-  - Caminhada
-  - Bike
-  - Outro
-- Botão de autopreencher veículos com base no roteiro
-- Sugestões do dia agora são editáveis
-- Botão para autopreencher todas as sugestões do roteiro
-- Botão para regenerar dicas de um dia específico
-- Orçamento agora pode vir em branco e ser autopreenchido
-- Supabase continua funcionando na aba Online
+## Publicar
 
-## Publicar no GitHub Pages
+Envie todos os arquivos para a raiz do GitHub Pages e acesse:
 
-1. Extraia o ZIP.
-2. Envie todos os arquivos para a raiz do repositório.
-3. Acesse:
-
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=plus-veiculos-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=mapa-hospedagens-1`
 
 Se aparecer versão antiga, use Ctrl + F5 ou limpe o service worker.

@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#09090f">
   <title>Mochilão Europa Plus</title>
 
-  <link rel="manifest" href="./manifest.json?v=plus-veiculos-1">
-  <link rel="icon" href="./assets/icons/icon.svg?v=plus-veiculos-1">
+  <link rel="manifest" href="./manifest.json?v=mapa-hospedagens-1">
+  <link rel="icon" href="./assets/icons/icon.svg?v=mapa-hospedagens-1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,700&family=DM+Sans:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/css/style.css?v=plus-veiculos-1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./assets/css/style.css?v=mapa-hospedagens-1">
 </head>
 <body>
   <div class="save-indicator" id="saveIndicator">💾 Salvo</div>
@@ -89,6 +90,7 @@
         <button class="nav-btn" data-section="ia">🤖 IA</button>
         <button class="nav-btn" data-section="paises">🌍 Países</button>
         <button class="nav-btn" data-section="veiculos">🚗 Veículos <span class="badge-new">NOVO</span></button>
+        <button class="nav-btn" data-section="hospedagens">🏨 Hospedagens <span class="badge-new">NOVO</span></button>
         <button class="nav-btn" data-section="orcamento">💶 Orçamento</button>
         <button class="nav-btn" data-section="dicas">💡 Dicas</button>
         <button class="nav-btn" data-section="checklist">✅ Checklist</button>
@@ -103,7 +105,8 @@
     <section id="view" class="section active"></section>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./assets/js/app.js?v=plus-veiculos-1"></script>
+  <script type="module" src="./assets/js/app.js?v=mapa-hospedagens-1"></script>
 </body>
 </html>

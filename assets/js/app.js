@@ -1,7 +1,7 @@
 import { DB, RATES } from "./data.js";
 import { register, login, logout, getSession, demoSession, loadState, saveState } from "./store.js";
 import { $, $$, toast, saved, uid, euro } from "./ui.js";
-import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
+import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
 import { generateAI } from "./ai.js";
 import { isSupabaseConfigured, supabaseCurrentUser, supabaseSignUp, supabaseSignIn, supabaseSignOut, supabasePush, supabasePull } from "./supabaseSync.js";
 
@@ -9,7 +9,7 @@ let session = getSession();
 let state = session ? loadState(session.id) : null;
 let section = "roteiro";
 
-const views = { roteiro, montador, mapa, ia, paises, veiculos, orcamento, dicas, checklist, mochila, moedas, frases, diario, online };
+const views = { roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online };
 
 function persist(message){
   saveState(session.id, state);
@@ -50,6 +50,7 @@ function render(){
   $("#view").innerHTML = view(state);
   $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === section));
   bind();
+  if(section === "mapa") setTimeout(initLeafletMap, 80);
 }
 
 function routeSegments(){
@@ -96,6 +97,78 @@ function autoBudget(){
   persist("Orçamento autopreenchido.");
   render();
 }
+
+
+function autoLodgings(){
+  state.lodgings = state.route.map(id => {
+    const c = DB[id];
+    const nights = Math.max(1, (state.cityDays[id] || c.sugDays || 2) - 1);
+    const type = c.cpd >= 110 ? "hostel" : "hotel";
+    return {
+      id:uid(), type, city:c.name,
+      name:type === "hostel" ? `Hostel central em ${c.name}` : `Hotel econômico em ${c.name}`,
+      checkin:"", checkout:"",
+      cost:`€${Math.round((c.cpd * 0.45) || 40)}/noite`,
+      area:"Perto do centro ou estação principal",
+      link:"", status:"Pesquisando",
+      notes:`Autopreenchido para ${nights} noite(s). Verificar cancelamento grátis, locker/bagagem e distância do transporte.`
+    };
+  });
+  persist("Hospedagens autopreenchidas.");
+  render();
+}
+
+function initLeafletMap(){
+  const el = $("#leafletMap");
+  if(!el) return;
+  if(!window.L){
+    el.innerHTML = "<div class='empty-state'>Leaflet não carregou. Verifique a conexão.</div>";
+    return;
+  }
+  if(window.__mochilaoMap){ window.__mochilaoMap.remove(); window.__mochilaoMap = null; }
+  const map = L.map(el, { scrollWheelZoom:true }).setView([50, 9], 4);
+  window.__mochilaoMap = map;
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
+  const routeLatLngs = [];
+  const markers = [];
+  Object.entries(DB).forEach(([id,c]) => {
+    if(typeof c.lat !== "number" || typeof c.lng !== "number") return;
+    const inRoute = state.route.includes(id);
+    const marker = L.marker([c.lat,c.lng]).addTo(map);
+    markers.push(marker);
+    if(inRoute) routeLatLngs.push([c.lat,c.lng]);
+    marker.bindPopup(`
+      <img class="map-popup-img" src="${c.image}" alt="${c.name}">
+      <div class="map-popup-title">${c.flag} ${c.name}</div>
+      <div class="map-popup-meta">${c.country} · ${c.vibe}</div>
+      <button class="map-popup-btn" data-popup-toggle="${id}">${inRoute ? "Remover do roteiro" : "Adicionar ao roteiro"}</button>
+    `);
+    marker.on("popupopen", () => {
+      setTimeout(() => {
+        document.querySelector(`[data-popup-toggle="${id}"]`)?.addEventListener("click", () => {
+          if(state.route.includes(id)) state.route = state.route.filter(x => x !== id);
+          else { state.route.push(id); state.cityDays[id] ||= c.sugDays || 2; }
+          persist("Roteiro atualizado pelo mapa.");
+          render();
+        });
+      }, 20);
+    });
+  });
+  if(routeLatLngs.length > 1){
+    const line = L.polyline(routeLatLngs, {weight:4}).addTo(map);
+    map.fitBounds(line.getBounds(), {padding:[35,35]});
+  }else if(routeLatLngs.length === 1){
+    map.setView(routeLatLngs[0], 8);
+  }else if(markers.length){
+    map.fitBounds(L.featureGroup(markers).getBounds(), {padding:[35,35]});
+  }
+  $("#fitMapRoute")?.addEventListener("click", () => {
+    if(routeLatLngs.length > 1) map.fitBounds(L.polyline(routeLatLngs).getBounds(), {padding:[35,35]});
+    else if(routeLatLngs.length === 1) map.setView(routeLatLngs[0], 8);
+  });
+  setTimeout(() => map.invalidateSize(), 250);
+}
+
 
 function autoAllDaySuggestions(){
   daysFromRoute(state).forEach(day => {
@@ -205,6 +278,15 @@ function bind(){
     };
   });
 
+
+  $$("[data-map-list-toggle]").forEach(btn => btn.onclick = () => {
+    const id = btn.dataset.mapListToggle;
+    if(state.route.includes(id)) state.route = state.route.filter(x => x !== id);
+    else { state.route.push(id); state.cityDays[id] ||= DB[id].sugDays || 2; }
+    persist("Roteiro atualizado pelo mapa.");
+    render();
+  });
+
   $("#autoVehicles")?.addEventListener("click", autoVehicles);
   $("#clearVehicles")?.addEventListener("click", () => { state.vehicles = []; persist("Veículos limpos."); render(); });
 
@@ -234,6 +316,36 @@ function bind(){
     const [id,field] = input.dataset.vehicleField.split(":");
     const v = state.vehicles.find(x => x.id === id);
     if(v) v[field] = input.value;
+    persist();
+  });
+
+
+  $("#autoLodgings")?.addEventListener("click", autoLodgings);
+  $("#clearLodgings")?.addEventListener("click", () => {
+    state.lodgings = [];
+    persist("Hospedagens limpas.");
+    render();
+  });
+  $("#lodgingForm")?.addEventListener("submit", e => {
+    e.preventDefault();
+    state.lodgings ||= [];
+    state.lodgings.push({
+      id:uid(), type:$("#lodType").value, city:$("#lodCity").value, name:$("#lodName").value,
+      checkin:$("#lodCheckin").value, checkout:$("#lodCheckout").value, cost:$("#lodCost").value,
+      area:$("#lodArea").value, link:$("#lodLink").value, status:$("#lodStatus").value, notes:$("#lodNotes").value
+    });
+    persist("Hospedagem adicionada.");
+    render();
+  });
+  $$("[data-del-lodging]").forEach(btn => btn.onclick = () => {
+    state.lodgings = (state.lodgings || []).filter(l => l.id !== btn.dataset.delLodging);
+    persist("Hospedagem removida.");
+    render();
+  });
+  $$("[data-lodging-field]").forEach(input => input.oninput = () => {
+    const [id,field] = input.dataset.lodgingField.split(":");
+    const l = (state.lodgings || []).find(x => x.id === id);
+    if(l) l[field] = input.value;
     persist();
   });
 

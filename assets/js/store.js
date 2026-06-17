@@ -59,6 +59,7 @@ export function defaultState(){
     daySuggestions:{},
     openDay:null,
     vehicles:[],
+    lodgings:[],
     expenses:[],
     checklist,
     pack: PACK.map((p,i)=>({id:"p"+i, cat:p[0], icon:p[1], name:p[2], weight:p[3], done:false})),
@@ -81,6 +82,7 @@ export function defaultState(){
 function migrate(state){
   state.daySuggestions ||= {};
   state.vehicles ||= [];
+  state.lodgings ||= [];
   state.expenses ||= [];
   state.settings ||= {};
   state.settings.supabaseUrl ||= "";

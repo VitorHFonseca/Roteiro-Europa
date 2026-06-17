@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Plus Veículos",
-  "short_name": "Europa Plus",
-  "description": "Planner de mochilão com imagens, mapa corrigido, veículos e sugestões editáveis.",
-  "start_url": "./?v=plus-veiculos-1",
+  "name": "Roteiro Europa Mapa Hospedagens",
+  "short_name": "Europa Map",
+  "description": "Planner com Leaflet, OpenStreetMap, veículos e hospedagens.",
+  "start_url": "./?v=mapa-hospedagens-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

@@ -186,32 +186,39 @@ function routeStats(state){
 }
 
 export function mapa(state){
-  const active = new Set(state.route);
-  const points = Object.entries(DB).map(([id,c])=>`
-    <button class="map-point ${active.has(id)?"active":""}" style="left:${c.x}%;top:${c.y}%;" data-map-city="${id}" title="${esc(c.name)}"></button>
-    <span class="map-label" style="left:${c.x}%;top:${c.y}%;">${c.flag} ${esc(c.name)}</span>
-  `).join("");
-  const linePoints = state.route.map(id => DB[id]).filter(Boolean).map(c=>`${c.x},${c.y}`).join(" ");
+  const routeNames = state.route.map(id => DB[id]?.name).filter(Boolean).join(" → ");
   return `
     <div class="map-stage">
-      <div class="section-header"><div class="gold-line"></div><h2>Mapa interativo corrigido</h2><p>Mapa visual responsivo: clique nos pontos para adicionar/remover cidades. Imagens voltaram no popup.</p></div>
-    </div>
-    <div class="map-wrap">
-      <div class="map-canvas" id="mapCanvas">
-        <svg class="route-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <rect width="100" height="100" fill="#071020"></rect>
-          <path d="M14 70 C20 58, 30 55, 38 66 C42 54, 50 40, 63 43 C77 38, 88 48, 82 65 C76 78, 65 80, 53 70 C43 77, 28 80, 14 70Z" fill="#1c2340" stroke="#2a3560" stroke-width=".5"></path>
-          <path d="M48 30 C58 21, 70 20, 79 28 C85 35, 82 46, 72 49 C62 51, 54 44, 48 30Z" fill="#1c2340" stroke="#2a3560" stroke-width=".5"></path>
-          ${linePoints ? `<polyline points="${linePoints}" fill="none" stroke="rgba(232,201,122,.85)" stroke-width=".55" stroke-dasharray="1.4 1" vector-effect="non-scaling-stroke"></polyline>` : ""}
-        </svg>
-        ${points}
-        <div class="map-tooltip" id="mapTooltip"></div>
+      <div class="section-header">
+        <div class="gold-line"></div>
+        <h2>Mapa com OpenStreetMap</h2>
+        <p>Agora o mapa usa Leaflet + OpenStreetMap. Clique nos marcadores para adicionar/remover cidades do roteiro.</p>
       </div>
-    </div>
-    <div class="legend">
-      <div class="legend-item"><span class="legend-dot" style="background:var(--gold);box-shadow:0 0 8px rgba(232,201,122,.7)"></span>No roteiro</div>
-      <div class="legend-item"><span class="legend-dot" style="background:#3a3a55;border:1px solid #666"></span>Disponível</div>
-      <div class="legend-item">Linha tracejada = ordem da viagem</div>
+      <div class="grid two">
+        <div class="leaflet-map-card"><div id="leafletMap"></div></div>
+        <div>
+          <div class="card" style="margin-bottom:1rem">
+            <h3>Roteiro no mapa</h3>
+            <p class="muted">${routeNames || "Nenhuma cidade no roteiro."}</p>
+            <div class="mini-actions">
+              <button class="primary-btn" id="fitMapRoute">Centralizar roteiro</button>
+              <button class="soft-btn" data-section-go="montador">Editar roteiro</button>
+            </div>
+          </div>
+          <div class="map-side-list">
+            ${Object.entries(DB).map(([id,c])=>`
+              <div class="map-side-item ${state.route.includes(id) ? "active" : ""}">
+                <div class="chip-flag">${c.flag}</div>
+                <div style="flex:1">
+                  <strong>${esc(c.name)}</strong>
+                  <div class="muted">${esc(c.country)} · ${esc(c.vibe)}</div>
+                </div>
+                <button class="soft-btn" data-map-list-toggle="${id}">${state.route.includes(id) ? "Remover" : "Adicionar"}</button>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -267,6 +274,68 @@ function vehicleCard(v){
       <div><label>Fornecedor/link</label><input data-vehicle-field="${v.id}:provider" value="${esc(v.provider || "")}"></div>
       <div><label>Custo</label><input data-vehicle-field="${v.id}:cost" value="${esc(v.cost || "")}"></div>
       <div style="grid-column:1/-1"><label>Observações editáveis</label><textarea data-vehicle-field="${v.id}:notes">${esc(v.notes || "")}</textarea></div>
+    </div>
+  </article>`;
+}
+
+
+export function hospedagens(state){
+  const typeOptions = [
+    ["hostel","🏠 Hostel"],["hotel","🏨 Hotel"],["airbnb","🛋️ Airbnb"],["quarto","🛏️ Quarto"],["pousada","🏡 Pousada"],["outro","✨ Outro"]
+  ].map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+
+  return `
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Hospedagens</h2>
+      <p>Funciona igual à aba de veículos: começa em branco, você adiciona opções, edita, exclui e pode autopreencher com base no roteiro.</p>
+    </div>
+    <div class="mini-actions" style="margin-bottom:1rem">
+      <button class="primary-btn" id="autoLodgings">Autopreencher hospedagens</button>
+      <button class="soft-btn" id="clearLodgings">Limpar hospedagens</button>
+    </div>
+    <div class="card">
+      <h3>Adicionar hospedagem</h3>
+      <form id="lodgingForm" class="grid three">
+        <div><label>Tipo</label><select id="lodType">${typeOptions}</select></div>
+        <div><label>Cidade</label><input id="lodCity" list="cityNamesLodging" placeholder="Paris"></div>
+        <div><label>Nome/opção</label><input id="lodName" placeholder="Hostel perto da estação"></div>
+        <div><label>Check-in</label><input id="lodCheckin" type="date"></div>
+        <div><label>Check-out</label><input id="lodCheckout" type="date"></div>
+        <div><label>Custo</label><input id="lodCost" placeholder="€80/noite"></div>
+        <div><label>Localização</label><input id="lodArea" placeholder="Centro, estação, bairro..."></div>
+        <div><label>Link</label><input id="lodLink" placeholder="Booking, Hostelworld, Airbnb..."></div>
+        <div><label>Status</label><select id="lodStatus"><option>Pesquisando</option><option>Favorito</option><option>Reservado</option><option>Pago</option></select></div>
+        <div style="grid-column:1/-1"><label>Observações</label><textarea id="lodNotes" placeholder="Cancelamento, café, bagagem, metrô perto..."></textarea></div>
+        <button class="primary-btn">Adicionar hospedagem</button>
+      </form>
+      <datalist id="cityNamesLodging">${Object.values(DB).map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
+    </div>
+    <div class="grid two" style="margin-top:1rem">
+      ${state.lodgings?.length ? state.lodgings.map(lodgingCard).join("") : `<div class="empty-state" style="grid-column:1/-1">Nenhuma hospedagem adicionada ainda. Use o formulário ou o botão de autopreenchimento.</div>`}
+    </div>
+  `;
+}
+
+function lodgingIcon(type){return {hostel:"🏠",hotel:"🏨",airbnb:"🛋️",quarto:"🛏️",pousada:"🏡",outro:"✨"}[type] || "✨"}
+function lodgingLabel(type){return {hostel:"Hostel",hotel:"Hotel",airbnb:"Airbnb",quarto:"Quarto",pousada:"Pousada",outro:"Outro"}[type] || "Outro"}
+function lodgingCard(l){
+  return `<article class="lodging-card">
+    <div class="lodging-head">
+      <div>
+        <div class="lodging-title">${lodgingIcon(l.type)} ${esc(l.city || "-")} · ${esc(l.name || "Opção sem nome")}</div>
+        <div class="lodging-meta"><span class="pill">${esc(lodgingLabel(l.type))}</span><span class="pill">${esc(l.status || "Pesquisando")}</span><span class="pill">${esc(l.cost || "sem custo")}</span></div>
+      </div>
+      <button class="danger-btn" data-del-lodging="${l.id}">Excluir</button>
+    </div>
+    <div class="grid two">
+      <div><label>Nome/opção</label><input data-lodging-field="${l.id}:name" value="${esc(l.name || "")}"></div>
+      <div><label>Custo</label><input data-lodging-field="${l.id}:cost" value="${esc(l.cost || "")}"></div>
+      <div><label>Check-in</label><input type="date" data-lodging-field="${l.id}:checkin" value="${esc(l.checkin || "")}"></div>
+      <div><label>Check-out</label><input type="date" data-lodging-field="${l.id}:checkout" value="${esc(l.checkout || "")}"></div>
+      <div><label>Localização</label><input data-lodging-field="${l.id}:area" value="${esc(l.area || "")}"></div>
+      <div><label>Link</label><input data-lodging-field="${l.id}:link" value="${esc(l.link || "")}"></div>
+      <div style="grid-column:1/-1"><label>Observações editáveis</label><textarea data-lodging-field="${l.id}:notes">${esc(l.notes || "")}</textarea></div>
     </div>
   </article>`;
 }

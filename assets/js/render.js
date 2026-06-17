@@ -584,6 +584,7 @@ export function diario(state){
 }
 
 export function online(state){
+  const mask = value => value ? "•".repeat(Math.min(18, Math.max(8, String(value).length))) : "não configurado";
   const sql = `create table public.trip_states (
   user_id uuid primary key references auth.users(id) on delete cascade,
   state jsonb not null,
@@ -597,13 +598,86 @@ create policy "insert own trip state" on public.trip_states for insert with chec
 create policy "update own trip state" on public.trip_states for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "delete own trip state" on public.trip_states for delete using (auth.uid() = user_id);`;
 
-  return `<div class="section-header"><div class="gold-line"></div><h2>Online & IA</h2><p>Supabase continua disponível para banco grátis. Cole URL, anon key e sincronize.</p></div>
+  return `<div class="section-header"><div class="gold-line"></div><h2>Online & Segurança</h2><p>Conexões protegidas visualmente: chaves aparecem mascaradas e você testa se os serviços estão ativos.</p></div>
   <div class="grid two">
-    <div class="card"><h3>☁️ Supabase</h3><label>Project URL</label><input id="supabaseUrl" value="${esc(state.settings.supabaseUrl || "")}" placeholder="https://xxxx.supabase.co"><label style="margin-top:.65rem;display:block">Anon public key</label><input id="supabaseAnonKey" value="${esc(state.settings.supabaseAnonKey || "")}" placeholder="eyJhbGciOi..."><button class="primary-btn" id="saveSupabaseConfig" style="margin-top:.8rem">Salvar configuração</button></div>
-    <div class="card"><h3>🔐 Conta online</h3><label>E-mail</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com"><label style="margin-top:.65rem;display:block">Senha</label><input id="supabasePassword" type="password" placeholder="mínimo 6 caracteres"><div class="grid two" style="margin-top:.8rem"><button class="soft-btn" id="supabaseSignup">Criar conta</button><button class="primary-btn" id="supabaseLogin">Entrar</button></div><div class="grid two" style="margin-top:.8rem"><button class="soft-btn" id="supabasePull">Baixar nuvem</button><button class="primary-btn" id="supabasePush">Enviar nuvem</button></div><button class="danger-btn full" id="supabaseLogout" style="margin-top:.8rem">Sair Supabase</button><div class="ai-status" id="supabaseStatus">Status: aguardando conexão</div></div>
+    <div class="card"><h3>☁️ Supabase</h3>
+      <p class="muted">Valores atuais:</p>
+      <div class="masked-key">URL: ${esc(mask(state.settings.supabaseUrl))}</div>
+      <div class="masked-key" style="margin-top:.5rem">KEY: ${esc(mask(state.settings.supabaseAnonKey))}</div>
+      <details style="margin-top:1rem">
+        <summary class="soft-btn" style="display:inline-flex">Alterar conexão</summary>
+        <div style="margin-top:1rem">
+          <label>Project URL</label><input id="supabaseUrl" value="${esc(state.settings.supabaseUrl || "")}" placeholder="https://xxxx.supabase.co">
+          <label style="margin-top:.65rem;display:block">Publishable / anon key</label><input id="supabaseAnonKey" type="password" value="${esc(state.settings.supabaseAnonKey || "")}" placeholder="sb_publishable...">
+          <button class="primary-btn" id="saveSupabaseConfig" style="margin-top:.8rem">Salvar configuração</button>
+        </div>
+      </details>
+      <div class="mini-actions" style="margin-top:1rem">
+        <button class="soft-btn" id="testSupabase">Testar Supabase</button>
+      </div>
+      <div class="ai-status" id="supabaseStatus">Status: aguardando teste</div>
+    </div>
+    <div class="card"><h3>🔐 Conta online</h3><label>E-mail</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com"><label style="margin-top:.65rem;display:block">Senha</label><input id="supabasePassword" type="password" placeholder="mínimo 6 caracteres"><div class="grid two" style="margin-top:.8rem"><button class="soft-btn" id="supabaseSignup">Criar conta</button><button class="primary-btn" id="supabaseLogin">Entrar</button></div><div class="grid two" style="margin-top:.8rem"><button class="soft-btn" id="supabasePull">Baixar nuvem</button><button class="primary-btn" id="supabasePush">Enviar nuvem</button></div><button class="danger-btn full" id="supabaseLogout" style="margin-top:.8rem">Sair Supabase</button></div>
   </div>
   <div class="grid two" style="margin-top:1rem">
-    <div class="card"><h3>🧱 SQL</h3><p class="muted">Execute no SQL Editor do Supabase.</p><pre class="code-box" id="supabaseSql">${esc(sql)}</pre><button class="soft-btn" id="copySupabaseSql" style="margin-top:.8rem">Copiar SQL</button></div>
-    <div class="card"><h3>🤖 Endpoint IA</h3><label>URL do endpoint IA</label><input id="aiEndpoint" value="${esc(state.settings.aiEndpoint || "")}" placeholder="https://seu-projeto.vercel.app/api/ai"><button class="primary-btn" id="saveAiEndpoint" style="margin-top:.7rem">Salvar endpoint IA</button></div>
+    <div class="card"><h3>🤖 API de IA</h3>
+      <p class="muted">Endpoint atual:</p>
+      <div class="masked-key">${esc(mask(state.settings.aiEndpoint))}</div>
+      <details style="margin-top:1rem"><summary class="soft-btn" style="display:inline-flex">Alterar endpoint</summary><div style="margin-top:1rem"><label>URL do endpoint IA</label><input id="aiEndpoint" type="password" value="${esc(state.settings.aiEndpoint || "")}" placeholder="https://seu-projeto.vercel.app/api/ai"><button class="primary-btn" id="saveAiEndpoint" style="margin-top:.7rem">Salvar endpoint IA</button></div></details>
+      <div class="mini-actions" style="margin-top:1rem"><button class="soft-btn" id="testAI">Testar IA</button><button class="primary-btn" id="testAllConnections">Testar tudo</button></div>
+      <div class="ai-status" id="aiStatus">Status: aguardando teste</div>
+    </div>
+    <div class="card"><h3>🧱 SQL</h3><p class="muted">Execute no SQL Editor do Supabase se ainda não tiver criado a tabela.</p><pre class="code-box" id="supabaseSql">${esc(sql)}</pre><button class="soft-btn" id="copySupabaseSql" style="margin-top:.8rem">Copiar SQL</button></div>
+  </div>`;
+}
+
+export function admin(state, users, session){
+  const mask = value => value ? "•".repeat(Math.min(18, Math.max(8, String(value).length))) : "não configurado";
+  return `<div class="section-header">
+    <div class="gold-line"></div>
+    <h2>Administração</h2>
+    <p>O ADM gerencia usuários e conexões. Por segurança, o ADM não cria nem edita roteiro, veículos, hospedagens ou orçamento.</p>
+  </div>
+
+  <div class="lock-banner">🛡️ Logado como ADM: ${esc(session?.name || session?.id)}. Edição de viagem bloqueada para esta conta.</div>
+
+  <div class="admin-layout">
+    <div class="card">
+      <h3>Usuários</h3>
+      <form id="adminCreateUserForm" class="grid three" style="margin-bottom:1rem">
+        <div><label>Nome</label><input id="adminUserName" placeholder="Nome do usuário"></div>
+        <div><label>Usuário/e-mail</label><input id="adminUserId" placeholder="usuario@email.com"></div>
+        <div><label>Senha inicial</label><input id="adminUserPass" type="password" placeholder="mínimo 4 caracteres"></div>
+        <div><label>Perfil</label><select id="adminUserRole"><option value="user">Usuário</option><option value="admin">ADM</option></select></div>
+        <button class="primary-btn">Criar usuário</button>
+      </form>
+
+      ${(users || []).map(u=>`
+        <div class="user-row">
+          <div><strong>${esc(u.name || u.id)}</strong><div class="muted">${esc(u.id)}</div></div>
+          <div><span class="user-role">${esc(u.role || "user")}</span></div>
+          <div><span class="pill">${esc(u.status || "active")}</span></div>
+          <div class="mini-actions">
+            <button class="soft-btn" data-admin-role="${u.id}" data-role="${u.role === "admin" ? "user" : "admin"}">${u.role === "admin" ? "Tornar usuário" : "Tornar ADM"}</button>
+            <button class="soft-btn" data-admin-status="${u.id}" data-status="${u.status === "blocked" ? "active" : "blocked"}">${u.status === "blocked" ? "Ativar" : "Bloquear"}</button>
+            <button class="danger-btn" data-admin-reset="${u.id}">Reset senha</button>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="card">
+      <h3>Conexões do sistema</h3>
+      <div class="security-status">
+        <div class="status-card" id="adminSupabaseCard"><div class="status-title">Supabase</div><div class="status-text">URL: ${esc(mask(state.settings.supabaseUrl))}<br>KEY: ${esc(mask(state.settings.supabaseAnonKey))}</div></div>
+        <div class="status-card" id="adminAiCard"><div class="status-title">IA</div><div class="status-text">${esc(mask(state.settings.aiEndpoint))}</div></div>
+      </div>
+      <div class="mini-actions" style="margin-top:1rem">
+        <button class="primary-btn" id="adminTestAll">Testar todas conexões</button>
+        <button class="soft-btn" data-section-go="online">Editar conexões</button>
+      </div>
+      <div class="ai-status" id="adminConnectionStatus">Status: aguardando teste</div>
+      <p class="muted" style="margin-top:1rem">Observação: no frontend, publishable/anon key é pública por natureza. Para segredos reais, use backend/Vercel. A tela mascara por segurança visual.</p>
+    </div>
   </div>`;
 }

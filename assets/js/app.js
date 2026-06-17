@@ -1,7 +1,7 @@
 import { DB, RATES } from "./data.js";
-import { register, login, logout, getSession, demoSession, loadState, saveState } from "./store.js";
+import { register, login, logout, getSession, demoSession, loadState, saveState, adminListUsers, adminCreateUser, adminSetUserStatus, adminSetUserRole, adminResetPassword } from "./store.js";
 import { $, $$, toast, saved, uid, euro } from "./ui.js";
-import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
+import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
 import { generateAI } from "./ai.js";
 import { isSupabaseConfigured, supabaseCurrentUser, supabaseSignUp, supabaseSignIn, supabaseSignOut, supabasePush, supabasePull } from "./supabaseSync.js";
 
@@ -9,7 +9,7 @@ let session = getSession();
 let state = session ? loadState(session.id) : null;
 let section = "roteiro";
 
-const views = { roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online };
+const views = { roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin };
 
 function persist(message){
   saveState(session.id, state);
@@ -43,11 +43,26 @@ function renderStrips(){
   $("#loginRouteStrip").innerHTML = html || routeStrip(["lisboa","barcelona","paris","berlim","veneza"]);
 }
 
+function isAdmin(){ return session?.role === "admin"; }
+
 function render(){
   renderStrips();
-  const view = views[section] || roteiro;
-  $("#view").className = section === "mapa" ? "section full-map active" : "section active";
-  $("#view").innerHTML = view(state);
+
+  $$(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin()));
+
+  if(isAdmin() && section !== "admin" && section !== "online"){
+    const view = views[section] || roteiro;
+    $("#view").className = section === "mapa" ? "section full-map active readonly-cover" : "section active readonly-cover";
+    $("#view").innerHTML = `<div class="lock-banner">🛡️ Modo ADM: visualização liberada, edição de viagem bloqueada. Use a aba Admin para gerenciar usuários.</div>` + view(state);
+  }else if(section === "admin"){
+    $("#view").className = "section active";
+    $("#view").innerHTML = admin(state, adminListUsers(session), session);
+  }else{
+    const view = views[section] || roteiro;
+    $("#view").className = section === "mapa" ? "section full-map active" : "section active";
+    $("#view").innerHTML = view(state);
+  }
+
   $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === section));
   bind();
   if(section === "mapa" || section === "roteiro") setTimeout(initLeafletMap, 80);
@@ -425,6 +440,51 @@ function bind(){
     render();
   });
 
+
+  $("#adminCreateUserForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    try{
+      await adminCreateUser(session,{
+        name:$("#adminUserName").value,
+        user:$("#adminUserId").value,
+        password:$("#adminUserPass").value,
+        role:$("#adminUserRole").value
+      });
+      toast("Usuário criado.");
+      render();
+    }catch(err){ toast(err.message); }
+  });
+
+  $$("[data-admin-status]").forEach(btn => btn.onclick = () => {
+    try{
+      adminSetUserStatus(session, btn.dataset.adminStatus, btn.dataset.status);
+      toast("Status atualizado.");
+      render();
+    }catch(err){ toast(err.message); }
+  });
+
+  $$("[data-admin-role]").forEach(btn => btn.onclick = () => {
+    try{
+      adminSetUserRole(session, btn.dataset.adminRole, btn.dataset.role);
+      toast("Perfil atualizado.");
+      render();
+    }catch(err){ toast(err.message); }
+  });
+
+  $$("[data-admin-reset]").forEach(btn => btn.onclick = async () => {
+    const pass = prompt("Digite a nova senha temporária:");
+    if(!pass) return;
+    try{
+      await adminResetPassword(session, btn.dataset.adminReset, pass);
+      toast("Senha resetada.");
+    }catch(err){ toast(err.message); }
+  });
+
+  $("#testSupabase")?.addEventListener("click", testSupabaseConnection);
+  $("#testAI")?.addEventListener("click", testAIConnection);
+  $("#testAllConnections")?.addEventListener("click", testAllConnections);
+  $("#adminTestAll")?.addEventListener("click", testAllConnections);
+
   bindSupabase();
 }
 
@@ -453,6 +513,50 @@ async function updateSupabaseStatus(userOverride){
     const user = userOverride === undefined ? await supabaseCurrentUser(state) : userOverride;
     el.textContent = user ? `Status: conectado como ${user.email || user.id}` : "Status: configurado, mas sem login";
   }catch{ el.textContent = "Status: configurado, mas sem login"; }
+}
+
+
+async function testSupabaseConnection(){
+  const status = $("#supabaseStatus") || $("#adminConnectionStatus");
+  try{
+    if(!state.settings.supabaseUrl || !state.settings.supabaseAnonKey) throw new Error("Supabase não configurado.");
+    await supabaseCurrentUser(state);
+    if(status) status.textContent = "Supabase ativo: SDK conectado. Login pode ser necessário para dados.";
+    return {ok:true,text:"Supabase ativo"};
+  }catch(err){
+    if(status) status.textContent = `Supabase: ${err.message}`;
+    return {ok:false,text:err.message};
+  }
+}
+
+async function testAIConnection(){
+  const status = $("#aiStatus") || $("#adminConnectionStatus");
+  try{
+    if(!state.settings.aiEndpoint) throw new Error("Endpoint IA não configurado.");
+    const res = await fetch(state.settings.aiEndpoint, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({mode:"ping",question:"teste de conexão",route:[]})
+    });
+    if(!res.ok) throw new Error(`IA retornou ${res.status}`);
+    if(status) status.textContent = "IA ativa: endpoint respondeu.";
+    return {ok:true,text:"IA ativa"};
+  }catch(err){
+    if(status) status.textContent = `IA: ${err.message}`;
+    return {ok:false,text:err.message};
+  }
+}
+
+async function testAllConnections(){
+  const supa = await testSupabaseConnection();
+  const ai = await testAIConnection();
+  const msg = `Supabase: ${supa.ok ? "ativo" : "falhou"} | IA: ${ai.ok ? "ativa" : "falhou"}`;
+  $("#adminConnectionStatus") && ($("#adminConnectionStatus").textContent = msg);
+  $("#adminSupabaseCard")?.classList.toggle("ok", supa.ok);
+  $("#adminSupabaseCard")?.classList.toggle("bad", !supa.ok);
+  $("#adminAiCard")?.classList.toggle("ok", ai.ok);
+  $("#adminAiCard")?.classList.toggle("bad", !ai.ok);
+  toast(msg);
 }
 
 function bindSupabase(){
@@ -524,23 +628,23 @@ $("#tabRegister").onclick = () => {
   $("#registerForm").classList.remove("hidden"); $("#loginForm").classList.add("hidden");
 };
 
-$("#loginForm").addEventListener("submit", e => {
+$("#loginForm").addEventListener("submit", async e => {
   e.preventDefault();
   try{
-    session = login({user:$("#loginUser").value, password:$("#loginPass").value});
+    session = await login({user:$("#loginUser").value, password:$("#loginPass").value});
     state = loadState(session.id);
     showHero();
     toast("Login realizado.");
   }catch(err){ toast(err.message); }
 });
 
-$("#registerForm").addEventListener("submit", e => {
+$("#registerForm").addEventListener("submit", async e => {
   e.preventDefault();
   try{
-    session = register({name:$("#regName").value, user:$("#regUser").value, password:$("#regPass").value});
+    session = await register({name:$("#regName").value, user:$("#regUser").value, password:$("#regPass").value});
     state = loadState(session.id);
     showHero();
-    toast("Conta criada.");
+    toast(session.role === "admin" ? "Conta ADM criada." : "Conta criada.");
   }catch(err){ toast(err.message); }
 });
 

@@ -1,42 +1,92 @@
 import { START_ROUTE, CHECKS, PACK } from "./data.js";
 
-const USERS_KEY = "roteiroEuropaPlus.users";
-const SESSION_KEY = "roteiroEuropaPlus.session";
-const STATE_KEY = "roteiroEuropaPlus.state";
-const encode = value => btoa(unescape(encodeURIComponent(String(value))));
+const USERS_KEY = "roteiroEuropaAdmin.users";
+const SESSION_KEY = "roteiroEuropaAdmin.session";
+const STATE_KEY = "roteiroEuropaAdmin.state";
+
 const normalize = value => String(value || "").trim().toLowerCase();
+const rand = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+
+async function sha256(text){
+  const data = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+async function hashPassword(password, salt){
+  return sha256(`${salt}:${password}:roteiro-europa`);
+}
 
 export function getUsers(){
   try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); }
   catch { return []; }
 }
 
-export function register({name,user,password}){
+function saveUsers(users){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+export function hasUsers(){ return getUsers().length > 0; }
+
+export async function register({name,user,password}){
   const users = getUsers();
   const id = normalize(user);
   if(users.some(u => u.id === id)) throw new Error("Este usuário já existe.");
-  const account = { id, name: String(name || user).trim(), pass: encode(password), createdAt: new Date().toISOString() };
+  const salt = rand();
+  const role = users.length === 0 ? "admin" : "user";
+  const account = {
+    id,
+    name: String(name || user).trim(),
+    role,
+    status:"active",
+    salt,
+    passwordHash: await hashPassword(password, salt),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
   users.push(account);
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  saveUsers(users);
   setSession(account);
-  return account;
+  return publicUser(account);
 }
 
-export function login({user,password}){
+export async function login({user,password}){
   const id = normalize(user);
-  const pass = encode(password);
-  const account = getUsers().find(u => u.id === id && u.pass === pass);
+  const users = getUsers();
+  const account = users.find(u => u.id === id);
   if(!account) throw new Error("Usuário ou senha inválidos.");
+  if(account.status === "blocked") throw new Error("Usuário bloqueado pelo administrador.");
+
+  let valid = false;
+  if(account.passwordHash && account.salt){
+    valid = account.passwordHash === await hashPassword(password, account.salt);
+  }else if(account.pass){
+    // compatibilidade com versões antigas que usavam base64
+    const old = btoa(unescape(encodeURIComponent(String(password))));
+    valid = account.pass === old;
+    if(valid){
+      account.salt = rand();
+      account.passwordHash = await hashPassword(password, account.salt);
+      delete account.pass;
+      account.updatedAt = new Date().toISOString();
+      saveUsers(users);
+    }
+  }
+
+  if(!valid) throw new Error("Usuário ou senha inválidos.");
   setSession(account);
-  return account;
+  return publicUser(account);
+}
+
+function publicUser(account){
+  return {id:account.id,name:account.name,role:account.role,status:account.status};
 }
 
 export function setSession(account){
-  localStorage.setItem(SESSION_KEY, JSON.stringify({id:account.id, name:account.name, loggedAt:new Date().toISOString()}));
+  localStorage.setItem(SESSION_KEY, JSON.stringify({
+    id:account.id, name:account.name, role:account.role || "user", loggedAt:new Date().toISOString()
+  }));
 }
 
 export function demoSession(){
-  const account = { id:"demo", name:"Modo Demonstração" };
+  const account = { id:"demo", name:"Modo Demonstração", role:"user", status:"active" };
   setSession(account);
   return account;
 }
@@ -47,6 +97,69 @@ export function getSession(){
 }
 
 export function logout(){ localStorage.removeItem(SESSION_KEY); }
+
+export async function adminCreateUser(adminSession,{name,user,password,role="user"}){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode criar usuários.");
+  const users = getUsers();
+  const id = normalize(user);
+  if(users.some(u => u.id === id)) throw new Error("Este usuário já existe.");
+  const salt = rand();
+  const account = {
+    id,
+    name: String(name || user).trim(),
+    role: role === "admin" ? "admin" : "user",
+    status:"active",
+    salt,
+    passwordHash: await hashPassword(password, salt),
+    createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  };
+  users.push(account);
+  saveUsers(users);
+  return publicUser(account);
+}
+
+export function adminListUsers(adminSession){
+  if(adminSession?.role !== "admin") return [];
+  return getUsers().map(u => ({
+    id:u.id,name:u.name,role:u.role || "user",status:u.status || "active",
+    createdAt:u.createdAt,updatedAt:u.updatedAt
+  }));
+}
+
+export function adminSetUserStatus(adminSession,userId,status){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode alterar usuários.");
+  const users = getUsers();
+  const u = users.find(x => x.id === userId);
+  if(!u) throw new Error("Usuário não encontrado.");
+  if(u.id === adminSession.id && status === "blocked") throw new Error("ADM não pode bloquear a própria conta.");
+  u.status = status === "blocked" ? "blocked" : "active";
+  u.updatedAt = new Date().toISOString();
+  saveUsers(users);
+}
+
+export function adminSetUserRole(adminSession,userId,role){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode alterar usuários.");
+  const users = getUsers();
+  const u = users.find(x => x.id === userId);
+  if(!u) throw new Error("Usuário não encontrado.");
+  if(u.id === adminSession.id && role !== "admin") throw new Error("ADM não pode remover o próprio perfil ADM.");
+  u.role = role === "admin" ? "admin" : "user";
+  u.updatedAt = new Date().toISOString();
+  saveUsers(users);
+}
+
+export async function adminResetPassword(adminSession,userId,password){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode resetar senha.");
+  const users = getUsers();
+  const u = users.find(x => x.id === userId);
+  if(!u) throw new Error("Usuário não encontrado.");
+  u.salt = rand();
+  u.passwordHash = await hashPassword(password,u.salt);
+  delete u.pass;
+  u.updatedAt = new Date().toISOString();
+  saveUsers(users);
+}
 
 export function defaultState(){
   const checklist = [];
@@ -88,6 +201,7 @@ function migrate(state){
   state.settings.supabaseUrl ||= "";
   state.settings.supabaseAnonKey ||= "";
   state.settings.supabaseEmail ||= "";
+  state.settings.aiEndpoint ||= "";
   return state;
 }
 

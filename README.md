@@ -1,25 +1,34 @@
-# Roteiro Europa — Roteiro + Mapa + Orçamento Conectado
+# Roteiro Europa — Segurança + Admin
 
-## Mudanças desta versão
+## O que mudou
 
-- A aba **Mapa** foi unificada com **Roteiro**.
-- Agora a primeira tela do app é **Roteiro + Mapa**.
-- O mapa usa Leaflet + OpenStreetMap dentro do roteiro.
-- O orçamento agora é conectado com:
-  - Veículos
-  - Hospedagens
-  - Roteiro
-  - Comida
-  - Turismo/Passeios
-  - Extras manuais
-- Comida e turismo são calculados automaticamente pelos dias/cidades.
-- Veículos e hospedagens alimentam o orçamento automaticamente.
-- Extras manuais ficam separados.
+- Primeiro usuário cadastrado vira **ADM**
+- ADM tem aba **Admin**
+- ADM gerencia usuários locais:
+  - criar usuário
+  - bloquear/desbloquear
+  - alterar perfil user/admin
+  - resetar senha
+- Senhas locais migradas para hash SHA-256 com salt
+- Chaves e endpoints aparecem mascarados como `••••••`
+- Botões para testar:
+  - Supabase
+  - IA
+  - Todas as conexões
+- ADM não cria nem edita roteiro, veículos, hospedagens ou orçamento
+- ADM só administra usuários e conexões
+- Usuários comuns continuam editando a viagem normalmente
+
+## Segurança importante
+
+A chave `publishable`/`anon` do Supabase é pública por natureza e pode ficar no frontend com RLS ativado. Nunca coloque `service_role` ou segredo real no navegador.
+
+Para segredos de verdade, use backend/Vercel.
 
 ## Publicar
 
 Envie todos os arquivos para a raiz do GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=unificado-orcamento-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=seguranca-admin-1`
 
 Se aparecer versão antiga, use Ctrl + F5 ou limpe o service worker.

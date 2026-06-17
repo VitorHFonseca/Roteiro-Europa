@@ -1,4 +1,4 @@
-const CACHE = "roteiro-europa-unificado-orcamento-1";
+const CACHE = "roteiro-europa-seguranca-admin-1";
 const APP = [
   "./",
   "./index.html",

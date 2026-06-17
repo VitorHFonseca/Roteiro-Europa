@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Unificado",
-  "short_name": "Europa Uni",
-  "description": "Roteiro com mapa unificado e orçamento conectado a veículos, hospedagens, comida e turismo.",
-  "start_url": "./?v=unificado-orcamento-1",
+  "name": "Roteiro Europa Segurança Admin",
+  "short_name": "Europa Admin",
+  "description": "Planner com usuário ADM, gestão de usuários, conexões mascaradas e testes de API.",
+  "start_url": "./?v=seguranca-admin-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

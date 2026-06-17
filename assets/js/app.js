@@ -50,7 +50,7 @@ function render(){
   $("#view").innerHTML = view(state);
   $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === section));
   bind();
-  if(section === "mapa") setTimeout(initLeafletMap, 80);
+  if(section === "mapa" || section === "roteiro") setTimeout(initLeafletMap, 80);
 }
 
 function routeSegments(){
@@ -84,17 +84,11 @@ function autoVehicles(){
 }
 
 function autoBudget(){
-  const lodging = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2)*38,0);
-  const food = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2)*28,0);
-  const attractions = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2)*14,0);
-  const transport = state.vehicles.length ? state.vehicles.length * 65 : Math.max(1,state.route.length-1)*70;
+  const days = state.route.reduce((sum,id)=>sum+(state.cityDays[id]||DB[id].sugDays||2),0);
   state.expenses = [
-    {id:uid(),cat:"Hospedagem",desc:"Estimativa de hospedagem por noites",amount:lodging},
-    {id:uid(),cat:"Alimentação",desc:"Mercado, cafés e refeições",amount:food},
-    {id:uid(),cat:"Passeios",desc:"Museus, atrações e experiências",amount:attractions},
-    {id:uid(),cat:"Veículos",desc:"Deslocamentos entre cidades",amount:transport}
+    {id:uid(),cat:"Reserva",desc:"Reserva extra para imprevistos, lavanderia, chip, taxas e variações de preço",amount:Math.max(100, days * 10)}
   ];
-  persist("Orçamento autopreenchido.");
+  persist("Reserva extra sugerida criada.");
   render();
 }
 
@@ -368,7 +362,7 @@ function bind(){
   });
 
   $("#autoBudget")?.addEventListener("click", autoBudget);
-  $("#clearBudget")?.addEventListener("click", () => { state.expenses = []; persist("Orçamento limpo."); render(); });
+  $("#clearBudget")?.addEventListener("click", () => { state.expenses = []; persist("Extras manuais limpos."); render(); });
 
   $("#expenseForm")?.addEventListener("submit", e => {
     e.preventDefault();

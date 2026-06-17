@@ -59,27 +59,50 @@ export function roteiro(state){
   const done = days.filter(d => state.dayDone[d.key]).length;
   const pct = Math.round(done / Math.max(days.length,1) * 100);
   const totalCost = state.route.reduce((sum,id)=>sum + DB[id].cpd * (state.cityDays[id] || DB[id].sugDays), 0);
+  const routeNames = state.route.map(id => DB[id]?.name).filter(Boolean).join(" → ");
+
   return `
     <div class="section-header">
       <div class="gold-line"></div>
-      <h2>Roteiro dia a dia</h2>
-      <p>Agora cada dia vem com imagem do local e sugestões editáveis. Você pode trocar o texto, salvar notas e regenerar as dicas quando quiser.</p>
+      <h2>Roteiro + Mapa</h2>
+      <p>Agora o roteiro e o mapa ficam juntos: você vê o caminho no OpenStreetMap e organiza os dias no mesmo lugar.</p>
     </div>
+
+    <div class="grid two" style="margin-bottom:1rem">
+      <div class="leaflet-map-card">
+        <div id="leafletMap"></div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:1rem">
+          <h3>Rota atual</h3>
+          <p class="muted">${routeNames || "Nenhuma cidade no roteiro."}</p>
+          <div class="mini-actions">
+            <button class="primary-btn" id="fitMapRoute">Centralizar mapa</button>
+            <button class="soft-btn" data-section-go="montador">Editar roteiro</button>
+            <button class="soft-btn" data-section-go="veiculos">Veículos</button>
+            <button class="soft-btn" data-section-go="hospedagens">Hospedagens</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Duração</div><div class="stat-value">${days.length}</div><div class="stat-sub">dias</div></div>
+          <div class="stat-card"><div class="stat-label">Cidades</div><div class="stat-value">${state.route.length}</div><div class="stat-sub">no roteiro</div></div>
+          <div class="stat-card"><div class="stat-label">Custo base</div><div class="stat-value">${euro(totalCost)}</div><div class="stat-sub">dias/cidade</div></div>
+          <div class="stat-card"><div class="stat-label">Feitos</div><div class="stat-value">${done}</div><div class="stat-sub">${pct}%</div></div>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-meta"><span>Progresso da viagem</span><span>${pct}%</span></div>
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+        </div>
+      </div>
+    </div>
+
     <div class="mini-actions" style="margin-bottom:1rem">
       <button class="primary-btn" id="autoFillAll">Autopreencher sugestões do roteiro</button>
-      <button class="soft-btn" data-section-go="veiculos">Montar veículos</button>
-      <button class="soft-btn" data-section-go="orcamento">Montar orçamento</button>
+      <button class="soft-btn" data-section-go="orcamento">Ver orçamento conectado</button>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-label">Duração</div><div class="stat-value">${days.length}</div><div class="stat-sub">dias de viagem</div></div>
-      <div class="stat-card"><div class="stat-label">Cidades</div><div class="stat-value">${state.route.length}</div><div class="stat-sub">${DB[state.route[0]]?.name || "-"} → ${DB[state.route.at(-1)]?.name || "-"}</div></div>
-      <div class="stat-card"><div class="stat-label">Custo base</div><div class="stat-value">${euro(totalCost)}</div><div class="stat-sub">estimativa diária</div></div>
-      <div class="stat-card"><div class="stat-label">Dias feitos</div><div class="stat-value">${done}</div><div class="stat-sub">de ${days.length} · ${pct}%</div></div>
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-meta"><span>Progresso da viagem</span><span>${pct}%</span></div>
-      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
-    </div>
+
     <div class="days-grid">${days.map(d => dayCard(d,state)).join("")}</div>
   `;
 }
@@ -405,38 +428,120 @@ export function paises(state){
   `;
 }
 
+
+function parseBudgetValue(raw){
+  const text = String(raw || "").replaceAll(",", ".");
+  const nums = text.match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+  if(!nums.length) return 0;
+  if(nums.length >= 2 && /-| a |até/i.test(text)) return Math.round((nums[0] + nums[1]) / 2);
+  return nums[0];
+}
+
+function routeDaysCount(state){
+  return state.route.reduce((sum,id)=>sum + (state.cityDays[id] || DB[id]?.sugDays || 2), 0);
+}
+
+function lodgingNightsForCity(state, cityName){
+  const found = Object.entries(DB).find(([_,c]) => c.name.toLowerCase() === String(cityName || "").toLowerCase());
+  if(!found) return 1;
+  const id = found[0];
+  return Math.max(1, (state.cityDays[id] || DB[id].sugDays || 2) - 1);
+}
+
+function connectedBudget(state){
+  const days = routeDaysCount(state);
+
+  const vehicles = (state.vehicles || []).reduce((sum,v) => sum + parseBudgetValue(v.cost), 0);
+
+  const lodgings = (state.lodgings || []).reduce((sum,l) => {
+    const value = parseBudgetValue(l.cost);
+    const perNight = /noite|night|diária|diaria/i.test(String(l.cost || ""));
+    return sum + (perNight ? value * lodgingNightsForCity(state,l.city) : value);
+  }, 0);
+
+  const food = state.route.reduce((sum,id) => {
+    const c = DB[id];
+    const daysCity = state.cityDays[id] || c.sugDays || 2;
+    return sum + Math.round(daysCity * Math.max(24, Math.min(42, c.cpd * 0.34)));
+  }, 0);
+
+  const tourism = state.route.reduce((sum,id) => {
+    const c = DB[id];
+    const daysCity = state.cityDays[id] || c.sugDays || 2;
+    return sum + Math.round(daysCity * Math.max(12, Math.min(30, c.cpd * 0.18)));
+  }, 0);
+
+  const extras = (state.expenses || []).reduce((sum,e)=>sum+Number(e.amount||0),0);
+
+  return {days, vehicles, lodgings, food, tourism, extras, total:vehicles+lodgings+food+tourism+extras};
+}
+
 export function orcamento(state){
-  const total = state.expenses.reduce((s,e)=>s+Number(e.amount||0),0);
-  const cats = [...new Set(state.expenses.map(e=>e.cat))];
+  const b = connectedBudget(state);
+  const rows = [
+    ["🚗 Veículos", "Soma dos custos cadastrados na aba Veículos", b.vehicles, "veiculos"],
+    ["🏨 Hospedagens", "Soma das hospedagens cadastradas; valores por noite são multiplicados pelas noites da cidade", b.lodgings, "hospedagens"],
+    ["🍽️ Comida", `Estimativa automática pelos ${b.days} dias do roteiro`, b.food, "roteiro"],
+    ["🎟️ Turismo", "Estimativa automática de passeios, museus e atrações por cidade", b.tourism, "roteiro"],
+    ["✨ Extras manuais", "Gastos adicionados manualmente abaixo", b.extras, "extra"]
+  ];
+
   return `
-    <div class="section-header"><div class="gold-line"></div><h2>Orçamento</h2><p>Controle de custos. Pode adicionar manualmente ou autopreencher baseado no roteiro e veículos.</p></div>
-    <div class="mini-actions" style="margin-bottom:1rem">
-      <button class="primary-btn" id="autoBudget">Autopreencher orçamento</button>
-      <button class="soft-btn" id="clearBudget">Limpar orçamento</button>
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Orçamento conectado</h2>
+      <p>O orçamento agora é a conexão entre <strong>Veículos</strong>, <strong>Hospedagens</strong> e <strong>Roteiro</strong>. Comida e turismo são calculados automaticamente pelos dias/cidades.</p>
     </div>
-    <div class="budget-total"><span class="muted">Total estimado</span><strong>${euro(total)}</strong><span class="muted">editável</span></div>
+
+    <div class="budget-total">
+      <span class="muted">Total geral estimado</span>
+      <strong>${euro(b.total)}</strong>
+      <span class="muted">veículos + hospedagens + comida + turismo + extras</span>
+    </div>
+
     <div class="grid two">
       <div class="card">
-        <h3>Adicionar gasto</h3>
-        <form id="expenseForm" class="grid two">
-          <div><label>Categoria</label><input id="expenseCat" placeholder="Hospedagem"></div>
-          <div><label>Valor</label><input id="expenseAmount" type="number" min="0" step="1" placeholder="100"></div>
-          <div style="grid-column:1/-1"><label>Descrição</label><input id="expenseDesc" placeholder="Hostel em Paris"></div>
-          <button class="primary-btn">Adicionar</button>
-        </form>
+        <h3>Resumo conectado</h3>
+        ${rows.map(([title,desc,value,target])=>{
+          const pct = Math.round(value / Math.max(b.total,1) * 100);
+          return `<div class="bar-row">
+            <div class="bar-label">${title}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+            <div class="bar-val">${euro(value)}</div>
+          </div>
+          <p class="muted" style="font-size:11px;margin:-.35rem 0 .55rem">${desc}</p>`;
+        }).join("")}
       </div>
+
       <div class="card">
-        <h3>Por categoria</h3>
-        ${cats.length ? cats.map(cat=>{
-          const val = state.expenses.filter(e=>e.cat===cat).reduce((s,e)=>s+Number(e.amount||0),0);
-          const pct = Math.round(val/Math.max(total,1)*100);
-          return `<div class="bar-row"><div class="bar-label">${esc(cat)}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><div class="bar-val">${euro(val)}</div></div>`;
-        }).join("") : `<p class="muted">Nenhum gasto ainda.</p>`}
+        <h3>Ações rápidas</h3>
+        <p class="muted">Use os atalhos para preencher as bases que alimentam o orçamento.</p>
+        <div class="mini-actions">
+          <button class="primary-btn" data-section-go="veiculos">Preencher veículos</button>
+          <button class="primary-btn" data-section-go="hospedagens">Preencher hospedagens</button>
+          <button class="soft-btn" data-section-go="roteiro">Ajustar roteiro</button>
+          <button class="soft-btn" id="autoBudget">Criar reserva extra sugerida</button>
+          <button class="danger-btn" id="clearBudget">Limpar extras manuais</button>
+        </div>
       </div>
     </div>
+
     <div class="card" style="margin-top:1rem">
-      <table class="table"><thead><tr><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
-      <tbody>${state.expenses.map(e=>`<tr><td>${esc(e.cat)}</td><td>${esc(e.desc)}</td><td>${euro(e.amount)}</td><td><button class="danger-btn" data-del-expense="${e.id}">Excluir</button></td></tr>`).join("") || `<tr><td colspan="4">Nenhum gasto.</td></tr>`}</tbody></table>
+      <h3>Adicionar gasto extra manual</h3>
+      <form id="expenseForm" class="grid three">
+        <div><label>Categoria</label><input id="expenseCat" placeholder="Emergência"></div>
+        <div><label>Valor</label><input id="expenseAmount" type="number" min="0" step="1" placeholder="100"></div>
+        <div><label>Descrição</label><input id="expenseDesc" placeholder="Reserva, chip, lavanderia..."></div>
+        <button class="primary-btn">Adicionar extra</button>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <h3>Extras manuais</h3>
+      <table class="table">
+        <thead><tr><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
+        <tbody>${(state.expenses || []).map(e=>`<tr><td>${esc(e.cat)}</td><td>${esc(e.desc)}</td><td>${euro(e.amount)}</td><td><button class="danger-btn" data-del-expense="${e.id}">Excluir</button></td></tr>`).join("") || `<tr><td colspan="4">Nenhum extra manual.</td></tr>`}</tbody>
+      </table>
     </div>
   `;
 }

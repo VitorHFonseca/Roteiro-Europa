@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="120" fill="#2563eb"/>
+  <circle cx="256" cy="240" r="142" fill="#dbeafe"/>
+  <path d="M150 248c40-70 142-88 216-34-8 72-60 126-134 138-36 6-70-28-82-104z" fill="#16a34a"/>
+  <path d="M170 378h172a38 38 0 0 1 38 38v18H132v-18a38 38 0 0 1 38-38z" fill="#111827"/>
+  <text x="256" y="278" text-anchor="middle" font-size="86" font-family="Arial" fill="#111827">🌍</text>
+</svg>

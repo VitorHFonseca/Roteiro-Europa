@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#09090f">
   <title>Mochilão Europa Admin Fix Pré-configurado</title>
 
-  <link rel="manifest" href="./manifest.json?v=admin-entrar-direto-1">
-  <link rel="icon" href="./assets/icons/icon.svg?v=admin-entrar-direto-1">
+  <link rel="manifest" href="./manifest.json?v=contas-no-banco-1">
+  <link rel="icon" href="./assets/icons/icon.svg?v=contas-no-banco-1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,700&family=DM+Sans:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="./assets/css/style.css?v=admin-entrar-direto-1">
+  <link rel="stylesheet" href="./assets/css/style.css?v=contas-no-banco-1">
 </head>
 <body>
   <div class="save-indicator" id="saveIndicator">💾 Salvo</div>
@@ -36,21 +36,21 @@
 
         <form id="loginForm" class="auth-form">
           <h2>Entrar no app</h2>
-          <p class="muted">Sua conta local continua funcionando.</p>
-          <label>Usuário</label>
-          <input id="loginUser" required autocomplete="username" placeholder="ex.: vitor">
+          <p class="muted">Entre com sua conta do banco Supabase.</p>
+          <label>E-mail</label>
+          <input id="loginUser" required autocomplete="username" placeholder="voce@email.com">
           <label>Senha</label>
           <input id="loginPass" required type="password" autocomplete="current-password" placeholder="••••••••">
           <button class="primary-btn full">Entrar</button>
         </form>
 
         <form id="registerForm" class="auth-form hidden">
-          <h2>Criar conta local</h2>
-          <p class="muted">A conta local separa os dados de cada viajante.</p>
+          <h2>Criar conta no banco</h2>
+          <p class="muted">O primeiro cadastro confirmado vira ADM. Os próximos entram como usuários comuns.</p>
           <label>Nome</label>
           <input id="regName" required placeholder="Seu nome">
-          <label>Usuário</label>
-          <input id="regUser" required autocomplete="username" placeholder="ex.: vitor">
+          <label>E-mail</label>
+          <input id="regUser" required autocomplete="username" placeholder="voce@email.com">
           <label>Senha</label>
           <input id="regPass" required minlength="4" type="password" autocomplete="new-password" placeholder="mínimo 4 caracteres">
           <button class="primary-btn full">Criar e entrar</button>
@@ -80,7 +80,7 @@
       <div class="nav-inner">
         <span class="nav-title">Europa 🍂</span>
         <button class="nav-btn active" data-section="roteiro">📅 Roteiro + Mapa</button>
-        <button class="nav-btn admin-only hidden" data-section="admin">🛡️ Admin</button>
+        <button class="nav-btn admin-only hidden" data-section="admin">🛡️ Administração</button>
         <button class="nav-btn" data-section="montador">✏️ Montar</button>
         <button class="nav-btn" data-section="ia">🤖 IA</button>
         <button class="nav-btn" data-section="paises">🌍 Países</button>
@@ -102,6 +102,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./assets/js/app.js?v=admin-entrar-direto-1"></script>
+  <script type="module" src="./assets/js/app.js?v=contas-no-banco-1"></script>
 </body>
 </html>

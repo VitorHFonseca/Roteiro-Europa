@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Admin Entrar Direto",
-  "short_name": "Europa Admin",
-  "description": "Login abre direto no painel: ADM vai para Admin, usuário vai para roteiro.",
-  "start_url": "./?v=admin-entrar-direto-1",
+  "name": "Roteiro Europa Contas no Banco",
+  "short_name": "Europa DB Auth",
+  "description": "Contas no Supabase Auth, roles em profiles e dados em trip_states.",
+  "start_url": "./?v=contas-no-banco-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

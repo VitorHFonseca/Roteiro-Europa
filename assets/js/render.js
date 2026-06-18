@@ -291,7 +291,7 @@ function vehicleCard(v){
         <div class="vehicle-type">${vehicleIcon(v.type)} ${esc(v.from || "-")} → ${esc(v.to || "-")}</div>
         <div class="vehicle-meta"><span class="pill">${esc(vehicleLabel(v.type))}</span> <span class="pill">${esc(v.duration || "sem duração")}</span> <span class="pill">${esc(v.cost || "sem custo")}</span></div>
       </div>
-      <button class="danger-btn" data-del-vehicle="${v.id}">Excluir</button>
+      <button class="danger-btn" data-del-vehicle="${v.id}">Excluir do app</button>
     </div>
     <div class="grid two">
       <div><label>Fornecedor/link</label><input data-vehicle-field="${v.id}:provider" value="${esc(v.provider || "")}"></div>
@@ -349,7 +349,7 @@ function lodgingCard(l){
         <div class="lodging-title">${lodgingIcon(l.type)} ${esc(l.city || "-")} · ${esc(l.name || "Opção sem nome")}</div>
         <div class="lodging-meta"><span class="pill">${esc(lodgingLabel(l.type))}</span><span class="pill">${esc(l.status || "Pesquisando")}</span><span class="pill">${esc(l.cost || "sem custo")}</span></div>
       </div>
-      <button class="danger-btn" data-del-lodging="${l.id}">Excluir</button>
+      <button class="danger-btn" data-del-lodging="${l.id}">Excluir do app</button>
     </div>
     <div class="grid two">
       <div><label>Nome/opção</label><input data-lodging-field="${l.id}:name" value="${esc(l.name || "")}"></div>
@@ -540,7 +540,7 @@ export function orcamento(state){
       <h3>Extras manuais</h3>
       <table class="table">
         <thead><tr><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
-        <tbody>${(state.expenses || []).map(e=>`<tr><td>${esc(e.cat)}</td><td>${esc(e.desc)}</td><td>${euro(e.amount)}</td><td><button class="danger-btn" data-del-expense="${e.id}">Excluir</button></td></tr>`).join("") || `<tr><td colspan="4">Nenhum extra manual.</td></tr>`}</tbody>
+        <tbody>${(state.expenses || []).map(e=>`<tr><td>${esc(e.cat)}</td><td>${esc(e.desc)}</td><td>${euro(e.amount)}</td><td><button class="danger-btn" data-del-expense="${e.id}">Excluir do app</button></td></tr>`).join("") || `<tr><td colspan="4">Nenhum extra manual.</td></tr>`}</tbody>
       </table>
     </div>
   `;
@@ -580,76 +580,58 @@ export function frases(state){
 }
 
 export function diario(state){
-  return `<div class="section-header"><div class="gold-line"></div><h2>Diário</h2><p>Registre memórias da viagem.</p></div><div class="card"><form id="diaryForm" class="diary-form"><div class="grid two"><div><label>Cidade</label><input id="diaryCity" placeholder="Paris"></div><div><label>Humor</label><select id="diaryMood"><option>😍 Incrível</option><option>🙂 Bom</option><option>😐 Normal</option><option>😴 Cansativo</option></select></div></div><div><label>Título</label><input id="diaryTitle" required placeholder="Um dia memorável"></div><div><label>Texto</label><textarea id="diaryText" required placeholder="Conte como foi..."></textarea></div><button class="primary-btn">Salvar memória</button></form></div><div style="margin-top:1rem">${state.diary.map(d=>`<article class="diary-entry"><div class="route-city-meta">${esc(d.city)} · ${esc(d.mood)} · ${new Date(d.createdAt).toLocaleDateString("pt-BR")}</div><h4>${esc(d.title)}</h4><p>${esc(d.text)}</p><button class="danger-btn" data-del-diary="${d.id}" style="margin-top:.7rem">Excluir</button></article>`).join("") || `<div class="empty-state">Nenhuma memória ainda.</div>`}</div>`;
+  return `<div class="section-header"><div class="gold-line"></div><h2>Diário</h2><p>Registre memórias da viagem.</p></div><div class="card"><form id="diaryForm" class="diary-form"><div class="grid two"><div><label>Cidade</label><input id="diaryCity" placeholder="Paris"></div><div><label>Humor</label><select id="diaryMood"><option>😍 Incrível</option><option>🙂 Bom</option><option>😐 Normal</option><option>😴 Cansativo</option></select></div></div><div><label>Título</label><input id="diaryTitle" required placeholder="Um dia memorável"></div><div><label>Texto</label><textarea id="diaryText" required placeholder="Conte como foi..."></textarea></div><button class="primary-btn">Salvar memória</button></form></div><div style="margin-top:1rem">${state.diary.map(d=>`<article class="diary-entry"><div class="route-city-meta">${esc(d.city)} · ${esc(d.mood)} · ${new Date(d.createdAt).toLocaleDateString("pt-BR")}</div><h4>${esc(d.title)}</h4><p>${esc(d.text)}</p><button class="danger-btn" data-del-diary="${d.id}" style="margin-top:.7rem">Excluir do app</button></article>`).join("") || `<div class="empty-state">Nenhuma memória ainda.</div>`}</div>`;
 }
 
 export function online(state){
   const mask = value => value ? "•".repeat(Math.min(18, Math.max(8, String(value).length))) : "não configurado";
-  const sql = `create table public.trip_states (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  state jsonb not null,
-  updated_at timestamptz default now()
-);
 
-alter table public.trip_states enable row level security;
-
-create policy "select own trip state" on public.trip_states for select using (auth.uid() = user_id);
-create policy "insert own trip state" on public.trip_states for insert with check (auth.uid() = user_id);
-create policy "update own trip state" on public.trip_states for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "delete own trip state" on public.trip_states for delete using (auth.uid() = user_id);`;
-
-  return `<div class="section-header"><div class="gold-line"></div><h2>Online & Segurança</h2><p>Conexões protegidas visualmente: chaves aparecem mascaradas e você testa se os serviços estão ativos.</p></div>
+  return `<div class="section-header"><div class="gold-line"></div><h2>Conta online</h2><p>O banco já vem pré-configurado pelo ADM. Usuários comuns só entram, enviam e baixam dados da nuvem.</p></div>
   <div class="grid two">
-    <div class="card"><h3>☁️ Supabase</h3>
-      <p class="muted">Valores atuais:</p>
+    <div class="card"><h3>☁️ Banco conectado</h3>
+      <p class="muted">Conexão nativa do app:</p>
       <div class="masked-key">URL: ${esc(mask(state.settings.supabaseUrl))}</div>
       <div class="masked-key" style="margin-top:.5rem">KEY: ${esc(mask(state.settings.supabaseAnonKey))}</div>
-      <details style="margin-top:1rem">
-        <summary class="soft-btn" style="display:inline-flex">Alterar conexão</summary>
-        <div style="margin-top:1rem">
-          <label>Project URL</label><input id="supabaseUrl" value="${esc(state.settings.supabaseUrl || "")}" placeholder="https://xxxx.supabase.co">
-          <label style="margin-top:.65rem;display:block">Publishable / anon key</label><input id="supabaseAnonKey" type="password" value="${esc(state.settings.supabaseAnonKey || "")}" placeholder="sb_publishable...">
-          <button class="primary-btn" id="saveSupabaseConfig" style="margin-top:.8rem">Salvar configuração</button>
-        </div>
-      </details>
       <div class="mini-actions" style="margin-top:1rem">
-        <button class="soft-btn" id="testSupabase">Testar Supabase</button>
+        <button class="soft-btn" id="testSupabase">Verificar conexão</button>
       </div>
       <div class="ai-status" id="supabaseStatus">Status: aguardando teste</div>
     </div>
-    <div class="card"><h3>🔐 Conta online</h3><label>E-mail</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com"><label style="margin-top:.65rem;display:block">Senha</label><input id="supabasePassword" type="password" placeholder="mínimo 6 caracteres"><div class="grid two" style="margin-top:.8rem"><button class="soft-btn" id="supabaseSignup">Criar conta</button><button class="primary-btn" id="supabaseLogin">Entrar</button></div><div class="grid two" style="margin-top:.8rem"><button class="soft-btn" id="supabasePull">Baixar nuvem</button><button class="primary-btn" id="supabasePush">Enviar nuvem</button></div><button class="danger-btn full" id="supabaseLogout" style="margin-top:.8rem">Sair Supabase</button></div>
-  </div>
-  <div class="grid two" style="margin-top:1rem">
-    <div class="card"><h3>🤖 API de IA</h3>
-      <p class="muted">Endpoint atual:</p>
-      <div class="masked-key">${esc(mask(state.settings.aiEndpoint))}</div>
-      <details style="margin-top:1rem"><summary class="soft-btn" style="display:inline-flex">Alterar endpoint</summary><div style="margin-top:1rem"><label>URL do endpoint IA</label><input id="aiEndpoint" type="password" value="${esc(state.settings.aiEndpoint || "")}" placeholder="https://seu-projeto.vercel.app/api/ai"><button class="primary-btn" id="saveAiEndpoint" style="margin-top:.7rem">Salvar endpoint IA</button></div></details>
-      <div class="mini-actions" style="margin-top:1rem"><button class="soft-btn" id="testAI">Testar IA</button><button class="primary-btn" id="testAllConnections">Testar tudo</button></div>
-      <div class="ai-status" id="aiStatus">Status: aguardando teste</div>
+
+    <div class="card"><h3>🔐 Entrar na nuvem</h3>
+      <label>E-mail</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com">
+      <label style="margin-top:.65rem;display:block">Senha</label><input id="supabasePassword" type="password" placeholder="mínimo 6 caracteres">
+      <div class="grid two" style="margin-top:.8rem">
+        <button class="soft-btn" id="supabaseSignup">Criar conta online</button>
+        <button class="primary-btn" id="supabaseLogin">Entrar</button>
+      </div>
+      <div class="grid two" style="margin-top:.8rem">
+        <button class="soft-btn" id="supabasePull">Baixar nuvem</button>
+        <button class="primary-btn" id="supabasePush">Enviar nuvem</button>
+      </div>
+      <button class="danger-btn full" id="supabaseLogout" style="margin-top:.8rem">Sair Supabase</button>
     </div>
-    <div class="card"><h3>🧱 SQL</h3><p class="muted">Execute no SQL Editor do Supabase se ainda não tiver criado a tabela.</p><pre class="code-box" id="supabaseSql">${esc(sql)}</pre><button class="soft-btn" id="copySupabaseSql" style="margin-top:.8rem">Copiar SQL</button></div>
   </div>`;
 }
 
 export function admin(state, users, session){
   const mask = value => value ? "•".repeat(Math.min(18, Math.max(8, String(value).length))) : "não configurado";
+
   return `<div class="section-header">
     <div class="gold-line"></div>
     <h2>Administração</h2>
-    <p>O ADM gerencia usuários e conexões. Por segurança, o ADM não cria nem edita roteiro, veículos, hospedagens ou orçamento.</p>
+    <p>Painel do ADM: usuários ficam no Supabase Auth/profiles; o ADM verifica conexões e gerencia perfis.</p>
   </div>
-
-  <div class="lock-banner">🛡️ Logado como ADM: ${esc(session?.name || session?.id)}. Edição de viagem bloqueada para esta conta.</div>
 
   <div class="admin-layout">
     <div class="card">
-      <h3>Usuários</h3>
+      <h3>Usuários no banco</h3><p class="muted">O primeiro cadastro confirmado no Supabase vira ADM automaticamente. Novos usuários ficam como usuário comum até o ADM alterar.</p>
       <form id="adminCreateUserForm" class="grid three" style="margin-bottom:1rem">
         <div><label>Nome</label><input id="adminUserName" placeholder="Nome do usuário"></div>
         <div><label>Usuário/e-mail</label><input id="adminUserId" placeholder="usuario@email.com"></div>
         <div><label>Senha inicial</label><input id="adminUserPass" type="password" placeholder="mínimo 4 caracteres"></div>
         <div><label>Perfil</label><select id="adminUserRole"><option value="user">Usuário</option><option value="admin">ADM</option></select></div>
-        <button class="primary-btn">Criar usuário</button>
+        <button class="primary-btn">Criar usuário no banco</button>
       </form>
 
       ${(users || []).map(u=>`
@@ -660,24 +642,50 @@ export function admin(state, users, session){
           <div class="mini-actions">
             <button class="soft-btn" data-admin-role="${u.id}" data-role="${u.role === "admin" ? "user" : "admin"}">${u.role === "admin" ? "Tornar usuário" : "Tornar ADM"}</button>
             <button class="soft-btn" data-admin-status="${u.id}" data-status="${u.status === "blocked" ? "active" : "blocked"}">${u.status === "blocked" ? "Ativar" : "Bloquear"}</button>
-            <button class="danger-btn" data-admin-reset="${u.id}">Reset senha</button>
+            <button class="soft-btn" data-admin-reset="${u.id}">Enviar reset</button>
+            <button class="danger-btn" data-admin-delete="${u.id}">Excluir do app</button>
           </div>
         </div>
       `).join("")}
     </div>
 
     <div class="card">
-      <h3>Conexões do sistema</h3>
+      <h3>Conexões nativas</h3>
+      <p class="muted">O ADM apenas verifica. URL e chave pública já ficam configuradas no app e são exibidas mascaradas.</p>
+
       <div class="security-status">
-        <div class="status-card" id="adminSupabaseCard"><div class="status-title">Supabase</div><div class="status-text">URL: ${esc(mask(state.settings.supabaseUrl))}<br>KEY: ${esc(mask(state.settings.supabaseAnonKey))}</div></div>
-        <div class="status-card" id="adminAiCard"><div class="status-title">IA</div><div class="status-text">${esc(mask(state.settings.aiEndpoint))}</div></div>
+        <div class="status-card" id="adminSupabaseCard">
+          <div class="status-title">Nível 1 · Supabase</div>
+          <div class="status-text">URL: ${esc(mask(state.settings.supabaseUrl))}<br>KEY: ${esc(mask(state.settings.supabaseAnonKey))}</div>
+        </div>
+        <div class="status-card" id="adminDbCard">
+          <div class="status-title">Nível 2 · Banco</div>
+          <div class="status-text">Tabela esperada: trip_states<br>RLS: obrigatório</div>
+        </div>
+        <div class="status-card" id="adminAuthCard">
+          <div class="status-title">Nível 3 · Auth</div>
+          <div class="status-text">Supabase Auth + profiles no banco</div>
+        </div>
+        <div class="status-card ok" id="adminLocalAiCard">
+          <div class="status-title">Nível 4 · IA local</div>
+          <div class="status-text">Fallback local ativo no navegador</div>
+        </div>
       </div>
+
       <div class="mini-actions" style="margin-top:1rem">
-        <button class="primary-btn" id="adminTestAll">Testar todas conexões</button>
-        <button class="soft-btn" data-section-go="online">Editar conexões</button>
+        <button class="primary-btn" id="adminTestAll">Verificar tudo</button>
+        <button class="soft-btn" id="testSupabase">Testar Supabase</button>
       </div>
-      <div class="ai-status" id="adminConnectionStatus">Status: aguardando teste</div>
-      <p class="muted" style="margin-top:1rem">Observação: no frontend, publishable/anon key é pública por natureza. Para segredos reais, use backend/Vercel. A tela mascara por segurança visual.</p>
+
+      <div class="ai-status" id="adminConnectionStatus">Status: aguardando verificação</div>
+
+      <div class="code-box" style="margin-top:1rem">Conexão ativa nativamente:
+- Supabase URL configurada
+- Publishable key configurada
+- Chaves mascaradas na interface
+- ADM não edita a viagem
+- Exclusão de contas locais disponível
+- Para apagar usuário dentro do Supabase Auth, é necessário backend seguro com service_role</div>
     </div>
   </div>`;
 }

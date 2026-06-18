@@ -128,3 +128,9 @@ label{color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:upperc
   pointer-events:none!important;opacity:.45!important;
 }
 @media(max-width:700px){.security-status,.user-row{grid-template-columns:1fr}}
+
+/* Native admin connections */
+body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
+.status-card.ok .status-title::before{content:"✅ ";color:var(--green)}
+.status-card.bad .status-title::before{content:"⚠️ ";color:var(--red)}
+.admin-layout .code-box{line-height:1.7}

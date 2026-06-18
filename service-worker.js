@@ -1,4 +1,4 @@
-const CACHE = "roteiro-europa-admin-entrar-direto-1";
+const CACHE = "roteiro-europa-contas-no-banco-1";
 const APP = [
   "./",
   "./index.html",

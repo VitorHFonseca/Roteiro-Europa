@@ -1,200 +1,36 @@
 import { START_ROUTE, CHECKS, PACK } from "./data.js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const USERS_KEY = "roteiroEuropaAdmin.users";
-const SESSION_KEY = "roteiroEuropaAdmin.session";
-const STATE_KEY = "roteiroEuropaAdmin.state";
+const SESSION_KEY = "roteiroEuropaDbAuth.session";
+const STATE_KEY = "roteiroEuropaDbAuth.state";
+const ADMIN_CACHE_KEY = "roteiroEuropaDbAuth.adminUsers";
 
-const normalize = value => String(value || "").trim().toLowerCase();
+export const DEFAULT_SUPABASE_URL = "https://kkohubqxekingkcaqrlr.supabase.co";
+export const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_UuITrkQf1277L8OzXLPYrA_4GwJcrm8";
 
-async function sha256(text){
-  const data = new TextEncoder().encode(text);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2,"0")).join("");
-}
-
-async function hashPassword(password, salt){
-  return sha256(`${salt}:${password}:roteiro-europa`);
-}
-
-const PRESET_USERS = [
-  {
-    id:"admin",
-    name:"Administrador",
-    role:"admin",
-    status:"active",
-    password:"Admin@2026!",
-    salt:"preset-admin-salt-v2"
-  },
-  {
-    id:"usuario",
-    name:"Usuário Padrão",
-    role:"user",
-    status:"active",
-    password:"Usuario@2026!",
-    salt:"preset-user-salt-v2"
+export const supabase = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY, {
+  auth:{
+    persistSession:true,
+    autoRefreshToken:true,
+    detectSessionInUrl:true
   }
-];
+});
 
-let seedPromise = null;
-
-async function ensurePresetUsers(){
-  if(seedPromise) return seedPromise;
-
-  seedPromise = (async () => {
-    const users = rawUsers();
-    let changed = false;
-
-    for(const preset of PRESET_USERS){
-      let existing = users.find(u => u.id === preset.id);
-
-      if(!existing){
-        existing = {
-          id:preset.id,
-          name:preset.name,
-          role:preset.role,
-          status:preset.status,
-          salt:preset.salt,
-          passwordHash: await hashPassword(preset.password, preset.salt),
-          createdAt:new Date().toISOString(),
-          updatedAt:new Date().toISOString(),
-          preset:true
-        };
-        users.push(existing);
-        changed = true;
-      }else{
-        existing.name ||= preset.name;
-        existing.role = preset.role;
-        existing.status = "active";
-        existing.salt = preset.salt;
-        existing.passwordHash = await hashPassword(preset.password, preset.salt);
-        existing.preset = true;
-        delete existing.pass;
-        existing.updatedAt = new Date().toISOString();
-        changed = true;
-      }
-    }
-
-    if(changed) saveUsers(users);
-    return users;
-  })();
-
-  return seedPromise;
+function normalizeEmail(value){
+  return String(value || "").trim().toLowerCase();
 }
 
-function rawUsers(){
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); }
-  catch { return []; }
-}
-
-function saveUsers(users){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
-
-export function getUsers(){
-  return rawUsers();
-}
-
-export async function initializePresetUsers(){
-  return ensurePresetUsers();
-}
-
-export function hasUsers(){
-  return getUsers().length > 0;
-}
-
-export async function register({name,user,password}){
-  await ensurePresetUsers();
-
-  const users = rawUsers();
-  const id = normalize(user);
-
-  if(users.some(u => u.id === id)){
-    throw new Error("Este usuário já existe.");
-  }
-
-  const salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-  const account = {
-    id,
-    name: String(name || user).trim(),
-    role:"user",
-    status:"active",
-    salt,
-    passwordHash: await hashPassword(password, salt),
-    createdAt:new Date().toISOString(),
-    updatedAt:new Date().toISOString()
+function saveSession(profile){
+  const session = {
+    id: profile.id,
+    name: profile.name || profile.email || "Usuário",
+    email: profile.email || "",
+    role: profile.role || "user",
+    status: profile.status || "active",
+    loggedAt: new Date().toISOString()
   };
-
-  users.push(account);
-  saveUsers(users);
-  setSession(account);
-  return publicUser(account);
-}
-
-export async function login({user,password}){
-  await ensurePresetUsers();
-
-  const id = normalize(user);
-  const users = rawUsers();
-  const account = users.find(u => u.id === id);
-
-  if(!account) throw new Error("Usuário ou senha inválidos.");
-  if(account.status === "blocked") throw new Error("Usuário bloqueado pelo administrador.");
-
-  // Fallback forte para os usuários padrão, mesmo se o LocalStorage antigo estiver corrompido.
-  if(id === "admin" && String(password) === "Admin@2026!"){
-    account.role = "admin";
-    account.status = "active";
-    account.name = account.name || "Administrador";
-    setSession(account);
-    return publicUser(account);
-  }
-
-  if(id === "usuario" && String(password) === "Usuario@2026!"){
-    account.role = "user";
-    account.status = "active";
-    account.name = account.name || "Usuário Padrão";
-    setSession(account);
-    return publicUser(account);
-  }
-
-  let valid = false;
-
-  if(account.passwordHash && account.salt){
-    valid = account.passwordHash === await hashPassword(password, account.salt);
-  }else if(account.pass){
-    const old = btoa(unescape(encodeURIComponent(String(password))));
-    valid = account.pass === old;
-    if(valid){
-      account.salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-      account.passwordHash = await hashPassword(password, account.salt);
-      delete account.pass;
-      account.updatedAt = new Date().toISOString();
-      saveUsers(users);
-    }
-  }
-
-  if(!valid) throw new Error("Usuário ou senha inválidos.");
-
-  setSession(account);
-  return publicUser(account);
-}
-
-function publicUser(account){
-  return {id:account.id,name:account.name,role:account.role,status:account.status};
-}
-
-export function setSession(account){
-  localStorage.setItem(SESSION_KEY, JSON.stringify({
-    id:account.id,
-    name:account.name,
-    role:account.role || "user",
-    loggedAt:new Date().toISOString()
-  }));
-}
-
-export function demoSession(){
-  // mantido só para compatibilidade; botão foi removido.
-  const account = { id:"usuario", name:"Usuário Padrão", role:"user", status:"active" };
-  setSession(account);
-  return account;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
 }
 
 export function getSession(){
@@ -202,99 +38,220 @@ export function getSession(){
   catch { return null; }
 }
 
-export function logout(){ localStorage.removeItem(SESSION_KEY); }
+export async function initializePresetUsers(){
+  const { data } = await supabase.auth.getSession();
 
-export async function adminCreateUser(adminSession,{name,user,password,role="user"}){
-  await ensurePresetUsers();
+  if(!data.session?.user){
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
 
-  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode criar usuários.");
+  const profile = await ensureProfile(data.session.user);
+  return saveSession(profile);
+}
 
-  const users = rawUsers();
-  const id = normalize(user);
+export async function register({name,user,password}){
+  const email = normalizeEmail(user);
 
-  if(users.some(u => u.id === id)) throw new Error("Este usuário já existe.");
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options:{ data:{ name: name || email } }
+  });
 
-  const salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-  const account = {
-    id,
-    name: String(name || user).trim(),
-    role: role === "admin" ? "admin" : "user",
-    status:"active",
-    salt,
-    passwordHash: await hashPassword(password, salt),
-    createdAt:new Date().toISOString(),
-    updatedAt:new Date().toISOString()
-  };
+  if(error) throw error;
 
-  users.push(account);
-  saveUsers(users);
-  return publicUser(account);
+  if(!data.session?.user){
+    throw new Error("Conta criada. Confirme seu e-mail, se o Supabase pedir, e depois faça login.");
+  }
+
+  const profile = await ensureProfile(data.session.user, name);
+  return saveSession(profile);
+}
+
+export async function login({user,password}){
+  const email = normalizeEmail(user);
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error) throw error;
+
+  const profile = await ensureProfile(data.user);
+
+  if(profile.status === "blocked") {
+    await logout();
+    throw new Error("Conta bloqueada pelo administrador.");
+  }
+
+  if(profile.status === "deleted") {
+    await logout();
+    throw new Error("Conta excluída pelo administrador.");
+  }
+
+  return saveSession(profile);
+}
+
+export async function logout(){
+  await supabase.auth.signOut();
+  localStorage.removeItem(SESSION_KEY);
+}
+
+async function ensureProfile(user, name=""){
+  if(!user) throw new Error("Usuário Supabase não encontrado.");
+
+  await supabase.rpc("claim_first_admin").catch(()=>{});
+
+  let { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id,email,name,role,status,created_at,updated_at")
+    .eq("id", user.id)
+    .single();
+
+  if(error || !profile){
+    const insert = {
+      id: user.id,
+      email: user.email,
+      name: name || user.user_metadata?.name || user.email,
+      role: "user",
+      status: "active"
+    };
+
+    await supabase.from("profiles").upsert(insert);
+
+    const result = await supabase
+      .from("profiles")
+      .select("id,email,name,role,status,created_at,updated_at")
+      .eq("id", user.id)
+      .single();
+
+    if(result.error) throw result.error;
+    profile = result.data;
+  }
+
+  return profile;
+}
+
+export async function adminRefreshUsers(adminSession){
+  if(adminSession?.role !== "admin") return [];
+
+  const { data, error } = await supabase.rpc("admin_list_profiles");
+
+  if(error) throw error;
+
+  localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(data || []));
+  return data || [];
 }
 
 export function adminListUsers(adminSession){
   if(adminSession?.role !== "admin") return [];
-  return rawUsers().map(u => ({
-    id:u.id,
-    name:u.name,
-    role:u.role || "user",
-    status:u.status || "active",
-    preset:!!u.preset,
-    createdAt:u.createdAt,
-    updatedAt:u.updatedAt
-  }));
+
+  try { return JSON.parse(localStorage.getItem(ADMIN_CACHE_KEY) || "[]"); }
+  catch { return []; }
 }
 
-export function adminSetUserStatus(adminSession,userId,status){
+export async function adminCreateUser(adminSession,{name,user,password,role="user"}){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode criar usuários.");
+
+  const email = normalizeEmail(user);
+
+  const tempClient = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY, {
+    auth:{
+      persistSession:false,
+      autoRefreshToken:false,
+      detectSessionInUrl:false,
+      storageKey:"roteiro-temp-create-user"
+    }
+  });
+
+  const { data, error } = await tempClient.auth.signUp({
+    email,
+    password,
+    options:{ data:{ name: name || email } }
+  });
+
+  if(error) throw error;
+
+  if(data.user){
+    await supabase.rpc("admin_set_profile", {
+      target_id: data.user.id,
+      new_role: role === "admin" ? "admin" : "user",
+      new_status: "active"
+    }).catch(()=>{});
+  }
+
+  await adminRefreshUsers(adminSession);
+  return data.user;
+}
+
+export async function adminSetUserStatus(adminSession,userId,status){
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode alterar usuários.");
 
-  const users = rawUsers();
-  const u = users.find(x => x.id === userId);
+  await supabase.rpc("admin_set_profile", {
+    target_id:userId,
+    new_role:null,
+    new_status: status === "blocked" ? "blocked" : "active"
+  });
 
-  if(!u) throw new Error("Usuário não encontrado.");
-  if(u.id === "admin" && status === "blocked") throw new Error("O ADM padrão não pode ser bloqueado.");
-  if(u.id === adminSession.id && status === "blocked") throw new Error("ADM não pode bloquear a própria conta.");
-
-  u.status = status === "blocked" ? "blocked" : "active";
-  u.updatedAt = new Date().toISOString();
-  saveUsers(users);
+  await adminRefreshUsers(adminSession);
 }
 
-export function adminSetUserRole(adminSession,userId,role){
+export async function adminSetUserRole(adminSession,userId,role){
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode alterar usuários.");
 
-  const users = rawUsers();
-  const u = users.find(x => x.id === userId);
+  await supabase.rpc("admin_set_profile", {
+    target_id:userId,
+    new_role: role === "admin" ? "admin" : "user",
+    new_status:null
+  });
 
-  if(!u) throw new Error("Usuário não encontrado.");
-  if(u.id === "admin" && role !== "admin") throw new Error("O ADM padrão não pode perder perfil ADM.");
-  if(u.id === adminSession.id && role !== "admin") throw new Error("ADM não pode remover o próprio perfil ADM.");
-
-  u.role = role === "admin" ? "admin" : "user";
-  u.updatedAt = new Date().toISOString();
-  saveUsers(users);
+  await adminRefreshUsers(adminSession);
 }
 
-export async function adminResetPassword(adminSession,userId,password){
-  await ensurePresetUsers();
+export async function adminResetPassword(adminSession,userId){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode enviar reset de senha.");
 
-  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode resetar senha.");
+  const users = adminListUsers(adminSession);
+  const target = users.find(u => u.id === userId);
 
-  const users = rawUsers();
-  const u = users.find(x => x.id === userId);
+  if(!target?.email) throw new Error("E-mail do usuário não encontrado.");
 
-  if(!u) throw new Error("Usuário não encontrado.");
+  const { error } = await supabase.auth.resetPasswordForEmail(target.email, {
+    redirectTo: location.origin + location.pathname
+  });
 
-  u.salt = crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-  u.passwordHash = await hashPassword(password,u.salt);
-  delete u.pass;
-  u.updatedAt = new Date().toISOString();
-  u.preset = false;
-  saveUsers(users);
+  if(error) throw error;
+}
+
+export async function adminDeleteUser(adminSession,userId){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode excluir usuários.");
+
+  await supabase.rpc("admin_soft_delete_profile", {
+    target_id:userId
+  });
+
+  localStorage.removeItem(`${STATE_KEY}.${userId}`);
+  await adminRefreshUsers(adminSession);
+}
+
+export function demoSession(){
+  throw new Error("Modo demonstração removido. Use conta Supabase.");
+}
+
+export function setSession(profile){
+  return saveSession(profile);
 }
 
 export function defaultState(){
   const checklist = [];
-  Object.entries(CHECKS).forEach(([cat,items]) => items.forEach(text => checklist.push({id:crypto.randomUUID(), cat, text, done:false})));
+  Object.entries(CHECKS).forEach(([cat,items]) => items.forEach(text => checklist.push({
+    id:crypto.randomUUID(),
+    cat,
+    text,
+    done:false
+  })));
 
   return {
     route:[...START_ROUTE],
@@ -313,8 +270,8 @@ export function defaultState(){
       traveler:"",
       startDate:"",
       aiEndpoint:"",
-      supabaseUrl:"",
-      supabaseAnonKey:"",
+      supabaseUrl:DEFAULT_SUPABASE_URL,
+      supabaseAnonKey:DEFAULT_SUPABASE_ANON_KEY,
       supabaseEmail:"",
       currencyFrom:"EUR",
       currencyTo:"BRL",
@@ -330,8 +287,8 @@ function migrate(state){
   state.lodgings ||= [];
   state.expenses ||= [];
   state.settings ||= {};
-  state.settings.supabaseUrl ||= "";
-  state.settings.supabaseAnonKey ||= "";
+  state.settings.supabaseUrl ||= DEFAULT_SUPABASE_URL;
+  state.settings.supabaseAnonKey ||= DEFAULT_SUPABASE_ANON_KEY;
   state.settings.supabaseEmail ||= "";
   state.settings.aiEndpoint ||= "";
   return state;

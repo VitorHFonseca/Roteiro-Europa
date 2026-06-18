@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Usuário Senha",
-  "short_name": "Europa Login",
-  "description": "Login com nome e senha, contas no Supabase e troca de senha pelo ADM.",
-  "start_url": "./?v=usuario-senha-banco-1",
+  "name": "Roteiro Europa Auth Custom",
+  "short_name": "Europa Auth",
+  "description": "Login por nome e senha no banco, sem Supabase Auth/e-mail.",
+  "start_url": "./?v=auth-custom-banco-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

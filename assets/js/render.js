@@ -586,10 +586,10 @@ export function diario(state){
 export function online(state){
   const mask = value => value ? "•".repeat(Math.min(18, Math.max(8, String(value).length))) : "não configurado";
 
-  return `<div class="section-header"><div class="gold-line"></div><h2>Conta online</h2><p>O banco já vem pré-configurado pelo ADM. Usuários comuns só entram, enviam e baixam dados da nuvem.</p></div>
+  return `<div class="section-header"><div class="gold-line"></div><h2>Nuvem</h2><p>Seu login já está no banco. Use esta tela apenas para enviar ou baixar seu roteiro.</p></div>
   <div class="grid two">
-    <div class="card"><h3>☁️ Banco conectado</h3>
-      <p class="muted">Conexão nativa do app:</p>
+    <div class="card"><h3>☁️ Banco do app</h3>
+      <p class="muted">Conexão nativa sem senha:</p>
       <div class="masked-key">URL: ${esc(mask(state.settings.supabaseUrl))}</div>
       <div class="masked-key" style="margin-top:.5rem">KEY: ${esc(mask(state.settings.supabaseAnonKey))}</div>
       <div class="mini-actions" style="margin-top:1rem">
@@ -598,18 +598,12 @@ export function online(state){
       <div class="ai-status" id="supabaseStatus">Status: aguardando teste</div>
     </div>
 
-    <div class="card"><h3>🔐 Entrar na nuvem</h3>
-      <label>Nome de usuário</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com">
-      <label style="margin-top:.65rem;display:block">Senha</label><input id="supabasePassword" type="password" placeholder="mínimo 6 caracteres">
-      <div class="grid two" style="margin-top:.8rem">
-        <button class="soft-btn" id="supabaseSignup">Criar conta online</button>
-        <button class="primary-btn" id="supabaseLogin">Entrar</button>
-      </div>
+    <div class="card"><h3>💾 Sincronização</h3>
+      <p class="muted">Salve ou recupere os dados da viagem no banco.</p>
       <div class="grid two" style="margin-top:.8rem">
         <button class="soft-btn" id="supabasePull">Baixar nuvem</button>
         <button class="primary-btn" id="supabasePush">Enviar nuvem</button>
       </div>
-      <button class="danger-btn full" id="supabaseLogout" style="margin-top:.8rem">Sair Supabase</button>
     </div>
   </div>`;
 }
@@ -620,7 +614,7 @@ export function admin(state, users, session){
   return `<div class="section-header">
     <div class="gold-line"></div>
     <h2>Administração</h2>
-    <p>Painel do ADM: usuários ficam no Supabase Auth/profiles; o ADM verifica conexões e gerencia perfis.</p>
+    <p>Painel do ADM: usuários ficam no Auth custom no banco/app_users; o ADM verifica conexões e gerencia perfis.</p>
   </div>
 
   <div class="admin-layout">
@@ -628,7 +622,7 @@ export function admin(state, users, session){
       <h3>Usuários no banco</h3><p class="muted">O primeiro cadastro confirmado no Supabase vira ADM automaticamente. Novos usuários ficam como usuário comum até o ADM alterar.</p>
       <form id="adminCreateUserForm" class="grid three" style="margin-bottom:1rem">
         <div><label>Nome</label><input id="adminUserName" placeholder="Nome do usuário"></div>
-        <div><label>Usuário/e-mail</label><input id="adminUserId" placeholder="ex.: vitor"></div>
+        <div><label>Usuário/senha</label><input id="adminUserId" placeholder="ex.: vitor"></div>
         <div><label>Senha</label><input id="adminUserPass" type="password" placeholder="mínimo 6 caracteres"></div><div><label>Confirmar senha</label><input id="adminUserPass2" type="password" placeholder="repita a senha"></div>
         <div><label>Perfil</label><select id="adminUserRole"><option value="user">Usuário</option><option value="admin">ADM</option></select></div>
         <button class="primary-btn">Criar usuário no banco</button>
@@ -636,7 +630,7 @@ export function admin(state, users, session){
 
       ${(users || []).map(u=>`
         <div class="user-row">
-          <div><strong>${esc(u.name || u.id)}</strong><div class="muted">${esc(u.username || u.email || u.id)}</div></div>
+          <div><strong>${esc(u.name || u.id)}</strong><div class="muted">${esc(u.username || u.id)}</div></div>
           <div><span class="user-role">${esc(u.role || "user")}</span></div>
           <div><span class="pill">${esc(u.status || "active")}</span></div>
           <div class="mini-actions">
@@ -660,11 +654,11 @@ export function admin(state, users, session){
         </div>
         <div class="status-card" id="adminDbCard">
           <div class="status-title">Nível 2 · Banco</div>
-          <div class="status-text">Tabela esperada: trip_states<br>RLS: obrigatório</div>
+          <div class="status-text">Tabela esperada: app_states<br>RLS: obrigatório</div>
         </div>
         <div class="status-card" id="adminAuthCard">
           <div class="status-title">Nível 3 · Auth</div>
-          <div class="status-text">Supabase Auth + profiles no banco</div>
+          <div class="status-text">Auth custom no banco + app_users no banco</div>
         </div>
         <div class="status-card ok" id="adminLocalAiCard">
           <div class="status-title">Nível 4 · IA local</div>
@@ -685,7 +679,7 @@ export function admin(state, users, session){
 - Chaves mascaradas na interface
 - ADM não edita a viagem
 - Exclusão de contas locais disponível
-- Para apagar usuário dentro do Supabase Auth, é necessário backend seguro com service_role</div>
+- Para apagar usuário dentro do Auth custom no banco, é necessário backend seguro com service_role</div>
     </div>
   </div>`;
 }

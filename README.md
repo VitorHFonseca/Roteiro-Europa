@@ -1,48 +1,44 @@
-# Roteiro Europa — Login por Nome + Senha
+# Roteiro Europa — Auth Custom no Banco
 
-## Mudança da tela de login
+## Por que esta versão existe
 
-Agora não aparece e-mail para o usuário.
+A versão anterior usava Supabase Auth por trás e o Supabase ainda disparava fluxo de e-mail.
+Isso causava erros como:
 
-Cadastro:
+`email rate limit exceeded`
 
-- Nome
-- Senha
-- Confirmar senha
+Esta versão remove totalmente o Supabase Auth/email.
 
-Login:
+## Agora é assim
 
-- Nome
-- Senha
-
-O app cria internamente um e-mail técnico para o Supabase Auth, mas o usuário não vê isso.
-
-## Troca de senha
-
-Na tela de login existe o botão **Trocar senha**.
-
-Ele mostra a mensagem:
-
-> Para trocar sua senha, entre em contato com o Vitor. A troca será feita pela conta ADM.
-
-No painel ADM, o botão **Trocar senha** permite definir uma nova senha para o usuário.
+- Cadastro: Nome + Senha + Confirmar senha
+- Login: Nome + Senha
+- Usuários ficam na tabela `app_users`
+- Senhas são salvas como hash `crypt()` no banco
+- Sessões ficam na tabela `app_sessions`
+- Dados da viagem ficam na tabela `app_states`
+- Primeiro usuário cadastrado vira ADM
+- Próximos usuários viram comuns
+- ADM pode criar, bloquear, excluir e trocar senha
 
 ## SQL obrigatório
 
-Rode o arquivo abaixo no Supabase:
+Rode no Supabase:
 
-`SUPABASE-USUARIO-SENHA.sql`
+`SUPABASE-AUTH-CUSTOM.sql`
 
 Caminho:
 
 Supabase > SQL Editor > New query > colar SQL > Run
 
-## Primeiro ADM
-
-O primeiro usuário criado/confirmado vira ADM automaticamente.
-
 ## Publicar
 
 Envie os arquivos para o GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=usuario-senha-banco-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=auth-custom-banco-1`
+
+## Troca de senha
+
+Usuário comum clica em **Trocar senha** e vê a orientação para falar com Vitor/ADM.
+
+No painel ADM, use **Trocar senha** no usuário desejado.

@@ -1,72 +1,60 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-let cachedClient = null;
-let cachedKey = "";
+const DEFAULT_SUPABASE_URL = "https://kkohubqxekingkcaqrlr.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_UuITrkQf1277L8OzXLPYrA_4GwJcrm8";
+const SESSION_KEY = "roteiroEuropaCustomAuth.session";
 
-function configKey(state){ return `${state.settings.supabaseUrl || ""}|${state.settings.supabaseAnonKey || ""}`; }
-export function isSupabaseConfigured(state){ return Boolean(state.settings.supabaseUrl?.trim() && state.settings.supabaseAnonKey?.trim()); }
+const supabase = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY, {
+  auth:{ persistSession:false, autoRefreshToken:false, detectSessionInUrl:false }
+});
 
-export function getSupabase(state){
-  if(!isSupabaseConfigured(state)) throw new Error("Configure URL e anon key do Supabase primeiro.");
-  const key = configKey(state);
-  if(!cachedClient || cachedKey !== key){
-    cachedClient = createClient(state.settings.supabaseUrl.trim(), state.settings.supabaseAnonKey.trim(), {
-      auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-    });
-    cachedKey = key;
-  }
-  return cachedClient;
+function getSession(){
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); }
+  catch { return null; }
 }
 
-export async function supabaseCurrentUser(state){
-  const { data, error } = await getSupabase(state).auth.getUser();
+function token(){
+  const session = getSession();
+  if(!session?.token) throw new Error("Sessão expirada. Entre novamente.");
+  return session.token;
+}
+
+export function isSupabaseConfigured(){
+  return true;
+}
+
+export async function supabaseCurrentUser(){
+  const { data, error } = await supabase.rpc("app_current_user", { p_token: token() });
   if(error) throw error;
-  return data.user;
+  return data?.[0];
 }
 
-export async function supabaseSignUp(state, email, password){
-  const { data, error } = await getSupabase(state).auth.signUp({ email, password });
-  if(error) throw error;
-  return data.user;
+export async function supabaseSignUp(){
+  throw new Error("Cadastro online separado foi removido. Use a tela principal.");
 }
 
-export async function supabaseSignIn(state, email, password){
-  const { data, error } = await getSupabase(state).auth.signInWithPassword({ email, password });
-  if(error) throw error;
-  return data.user;
+export async function supabaseSignIn(){
+  throw new Error("Login online separado foi removido. Use a tela principal.");
 }
 
-export async function supabaseSignOut(state){
-  const { error } = await getSupabase(state).auth.signOut();
-  if(error) throw error;
-}
-
-function cleanState(state){
-  const copy = JSON.parse(JSON.stringify(state));
-  copy.settings.supabaseAnonKey = "";
-  copy.settings.supabaseUrl = "";
-  return copy;
+export async function supabaseSignOut(){
+  return true;
 }
 
 export async function supabasePush(state){
-  const supabase = getSupabase(state);
-  const { data:userData, error:userError } = await supabase.auth.getUser();
-  if(userError) throw userError;
-  const user = userData.user;
-  if(!user) throw new Error("Entre no Supabase antes de sincronizar.");
-  const payload = { user_id:user.id, state:cleanState(state), updated_at:new Date().toISOString() };
-  const { error } = await supabase.from("trip_states").upsert(payload, { onConflict:"user_id" });
+  const clean = JSON.parse(JSON.stringify(state));
+  const { error } = await supabase.rpc("app_save_state", {
+    p_token: token(),
+    p_state: clean
+  });
   if(error) throw error;
-  return payload;
+  return { updated_at:new Date().toISOString() };
 }
 
-export async function supabasePull(state){
-  const supabase = getSupabase(state);
-  const { data:userData, error:userError } = await supabase.auth.getUser();
-  if(userError) throw userError;
-  const user = userData.user;
-  if(!user) throw new Error("Entre no Supabase antes de baixar.");
-  const { data, error } = await supabase.from("trip_states").select("state, updated_at").eq("user_id", user.id).single();
+export async function supabasePull(){
+  const { data, error } = await supabase.rpc("app_get_state", {
+    p_token: token()
+  });
   if(error) throw error;
-  return data;
+  return { state:data || null, updated_at:new Date().toISOString() };
 }

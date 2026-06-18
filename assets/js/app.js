@@ -562,18 +562,21 @@ async function testSupabaseConnection(){
 
     const cleanUrl = url.replace(/\/rest\/v1\/?$/,"").replace(/\/$/,"");
 
-    const profiles = await fetch(`${cleanUrl}/rest/v1/profiles?select=id&limit=1`, {
-      headers:{ apikey:key, Authorization:`Bearer ${key}` }
+    const res = await fetch(`${cleanUrl}/rest/v1/rpc/app_current_user`, {
+      method:"POST",
+      headers:{
+        apikey:key,
+        Authorization:`Bearer ${key}`,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({p_token:"teste"})
     });
 
-    const trips = await fetch(`${cleanUrl}/rest/v1/trip_states?select=user_id&limit=1`, {
-      headers:{ apikey:key, Authorization:`Bearer ${key}` }
-    });
+    if(res.status !== 400 && res.status !== 401 && res.status !== 200){
+      throw new Error(`RPC respondeu ${res.status}`);
+    }
 
-    if(!profiles.ok) throw new Error(`profiles respondeu ${profiles.status}`);
-    if(!trips.ok) throw new Error(`trip_states respondeu ${trips.status}`);
-
-    if(status) status.textContent = "Supabase ativo: Auth, profiles e trip_states responderam.";
+    if(status) status.textContent = "Supabase ativo: RPCs de auth custom responderam.";
     $("#adminSupabaseCard")?.classList.add("ok");
     $("#adminSupabaseCard")?.classList.remove("bad");
     $("#adminDbCard")?.classList.add("ok");
@@ -729,7 +732,7 @@ if(logoutButton) logoutButton.onclick = async () => {
 };
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=usuario-senha-banco-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=auth-custom-banco-1").catch(()=>{});
 }
 
 async function boot(){

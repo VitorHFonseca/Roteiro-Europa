@@ -54,6 +54,99 @@ export function daysFromRoute(state){
   return days;
 }
 
+
+export function viagem(state){
+  const days = daysFromRoute(state);
+  const next = days.find(d => !state.dayDone[d.key]) || days[0];
+  const doneDays = days.filter(d => state.dayDone[d.key]).length;
+  const openTasks = (state.checklist || []).filter(i => !i.done).length;
+  const packed = (state.pack || []).filter(i => i.done).length;
+  const packTotal = (state.pack || []).length;
+  const vehicles = (state.vehicles || []).length;
+  const lodgings = (state.lodgings || []).length;
+  const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+
+  return `
+    <div class="section-header">
+      <div class="gold-line"></div>
+      <h2>Central da viagem</h2>
+      <p>A tela para usar durante a viagem: próximo passo, emergência, documentos, backup e status offline/online.</p>
+    </div>
+
+    <div class="travel-hero">
+      <div class="card travel-focus">
+        <h3>🧭 Próximo foco</h3>
+        ${next ? `
+          <div class="day-photo" style="border-radius:16px;margin-bottom:1rem">
+            <img src="${esc(next.city.image)}" alt="${esc(next.city.name)}" loading="lazy">
+            <div class="day-photo-info">
+              <div class="day-photo-title">Dia ${next.day} · ${next.city.flag} ${esc(next.title)}</div>
+              <div class="muted">${esc(next.city.country)} · ${esc(next.city.vibe)}</div>
+            </div>
+          </div>
+          <ul class="activity-list" style="padding:0">
+            ${(next.suggestions || "").split("\n").filter(Boolean).slice(0,4).map(a=>`<li class="activity-item"><span class="activity-dot"></span><span>${esc(a)}</span></li>`).join("")}
+          </ul>
+          <div class="mini-actions" style="margin-top:1rem">
+            <button class="primary-btn" data-section-go="roteiro">Abrir roteiro</button>
+            <button class="soft-btn" data-section-go="veiculos">Ver veículos</button>
+            <button class="soft-btn" data-section-go="hospedagens">Ver hospedagens</button>
+          </div>
+        ` : `<p class="muted">Monte o roteiro para aparecer o próximo foco.</p>`}
+      </div>
+
+      <div class="card">
+        <h3>📌 Status rápido</h3>
+        <div class="travel-status-grid">
+          <div class="travel-chip"><strong>${doneDays}/${days.length || 0}</strong><span class="muted">dias concluídos</span></div>
+          <div class="travel-chip"><strong>${openTasks}</strong><span class="muted">tarefas pendentes</span></div>
+          <div class="travel-chip"><strong>${packed}/${packTotal}</strong><span class="muted">mochila marcada</span></div>
+          <div class="travel-chip"><strong>${online ? "Online" : "Offline"}</strong><span class="muted">status agora</span></div>
+          <div class="travel-chip"><strong>${vehicles}</strong><span class="muted">veículos cadastrados</span></div>
+          <div class="travel-chip"><strong>${lodgings}</strong><span class="muted">hospedagens cadastradas</span></div>
+        </div>
+        <div class="mini-actions" style="margin-top:1rem">
+          <button class="primary-btn" id="syncNow">Enviar nuvem</button>
+          <button class="soft-btn" id="backupJson">Baixar backup JSON</button>
+          <label class="soft-btn">Importar backup <input class="file-input-hidden" id="backupFile" type="file" accept="application/json"></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid two" style="margin-top:1rem">
+      <div class="card emergency-card">
+        <h3>🚨 Emergência offline</h3>
+        <p class="muted">Essas informações ficam salvas no aparelho e no backup da viagem.</p>
+        <label>Contato de emergência</label>
+        <input data-setting="emergencyName" value="${esc(state.settings.emergencyName || "")}" placeholder="Nome da pessoa">
+        <label>Telefone/WhatsApp</label>
+        <input data-setting="emergencyPhone" value="${esc(state.settings.emergencyPhone || "")}" placeholder="+55 ...">
+        <label>Seguro viagem</label>
+        <input data-setting="emergencyInsurance" value="${esc(state.settings.emergencyInsurance || "")}" placeholder="Nome da seguradora">
+        <label>Número da apólice</label>
+        <input data-setting="emergencyPolicy" value="${esc(state.settings.emergencyPolicy || "")}" placeholder="Apólice / contrato">
+        <label>Embaixada/consulado</label>
+        <input data-setting="emergencyEmbassy" value="${esc(state.settings.emergencyEmbassy || "")}" placeholder="Endereço ou telefone">
+      </div>
+
+      <div class="card emergency-card">
+        <h3>📄 Documentos e base</h3>
+        <label>Passaporte / documento</label>
+        <input data-setting="emergencyPassport" value="${esc(state.settings.emergencyPassport || "")}" placeholder="Número ou localização do arquivo">
+        <label>Hospedagem atual / endereço base</label>
+        <input data-setting="emergencyHotel" value="${esc(state.settings.emergencyHotel || "")}" placeholder="Hotel, hostel, endereço">
+        <label>Data inicial da viagem</label>
+        <input type="date" data-setting="tripStartDate" value="${esc(state.settings.tripStartDate || "")}">
+        <label>Data final da viagem</label>
+        <input type="date" data-setting="tripEndDate" value="${esc(state.settings.tripEndDate || "")}">
+        <label>Notas importantes</label>
+        <textarea data-setting="emergencyNotes" placeholder="Alergias, remédios, contatos, códigos de reserva...">${esc(state.settings.emergencyNotes || "")}</textarea>
+      </div>
+    </div>
+  `;
+}
+
+
 export function roteiro(state){
   const days = daysFromRoute(state);
   const done = days.filter(d => state.dayDone[d.key]).length;

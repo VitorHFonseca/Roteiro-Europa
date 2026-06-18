@@ -134,3 +134,58 @@ body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
 .status-card.ok .status-title::before{content:"✅ ";color:var(--green)}
 .status-card.bad .status-title::before{content:"⚠️ ";color:var(--red)}
 .admin-layout .code-box{line-height:1.7}
+
+/* Viagem Pro */
+.nav-user{
+  flex-shrink:0;
+  color:var(--hint);
+  font-size:11px;
+  font-family:'DM Mono',monospace;
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:5px 9px;
+  white-space:nowrap;
+}
+.logout-nav{
+  border-color:rgba(239,68,68,.25)!important;
+  color:#fca5a5!important;
+}
+.logout-nav:hover{
+  background:rgba(239,68,68,.12)!important;
+}
+.travel-hero{
+  display:grid;
+  gap:14px;
+  grid-template-columns:1.1fr .9fr;
+  align-items:stretch;
+}
+.travel-focus{
+  background:linear-gradient(135deg,rgba(232,201,122,.12),rgba(232,201,122,.03));
+  border:1px solid rgba(232,201,122,.25);
+}
+.travel-status-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.travel-chip{
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:.7rem;
+}
+.travel-chip strong{
+  display:block;
+  color:var(--gold);
+  font-family:'Playfair Display',serif;
+  font-size:1.3rem;
+}
+.emergency-card input,
+.emergency-card textarea{
+  margin-bottom:.55rem;
+}
+.file-input-hidden{display:none}
+@media(max-width:920px){
+  .travel-hero{grid-template-columns:1fr}
+  .travel-status-grid{grid-template-columns:1fr}
+}

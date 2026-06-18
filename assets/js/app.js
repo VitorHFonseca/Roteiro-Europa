@@ -1,7 +1,7 @@
 import { DB, RATES } from "./data.js";
 import { register, login, logout, getSession, loadState, saveState, initializePresetUsers, adminListUsers, adminRefreshUsers, adminCreateUser, adminSetUserStatus, adminSetUserRole, adminResetPassword, adminDeleteUser } from "./store.js";
 import { $, $$, toast, saved, uid, euro } from "./ui.js";
-import { routeStrip, roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
+import { routeStrip, roteiro, viagem, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
 import { generateAI } from "./ai.js";
 import { isSupabaseConfigured, supabaseCurrentUser, supabaseSignUp, supabaseSignIn, supabaseSignOut, supabasePush, supabasePull } from "./supabaseSync.js";
 
@@ -9,7 +9,7 @@ let session = getSession();
 let state = session ? loadState(session.id) : null;
 let section = "roteiro";
 
-const views = { roteiro, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin };
+const views = { roteiro, viagem, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin };
 
 function persist(message){
   saveState(session.id, state);
@@ -21,6 +21,15 @@ function showLogin(){
   $("#loginScreen").classList.remove("hidden");
   $("#hero").classList.add("hidden");
   $("#app").classList.add("hidden");
+}
+
+async function doLogout(){
+  try{ await logout(); }catch{}
+  session = null;
+  state = null;
+  section = "roteiro";
+  showLogin();
+  toast("Você saiu.");
 }
 
 function showHero(){
@@ -70,9 +79,16 @@ function render(){
   document.body.classList.toggle("admin-mode", isAdmin());
 
   $$(".nav-btn").forEach(btn => {
-    const show = !isAdmin() || btn.dataset.section === "admin";
+    const isLogout = btn.id === "appLogoutBtn";
+    const show = isLogout || !isAdmin() || btn.dataset.section === "admin";
     btn.classList.toggle("hidden", !show);
   });
+
+  const navUser = $("#navUser");
+  if(navUser){
+    navUser.classList.toggle("hidden", !session);
+    navUser.textContent = session ? `${session.role === "admin" ? "ADM" : "USER"} · ${session.name || session.username || ""}` : "";
+  }
   $$(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin()));
 
   if(section === "admin"){
@@ -84,7 +100,7 @@ function render(){
     $("#view").innerHTML = view(state);
   }
 
-  $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section === section));
+  $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section && b.dataset.section === section));
   bind();
   if(!isAdmin() && (section === "mapa" || section === "roteiro")) setTimeout(initLeafletMap, 80);
 }
@@ -521,6 +537,57 @@ function bind(){
   $("#testAllConnections")?.addEventListener("click", testAllConnections);
   $("#adminTestAll")?.addEventListener("click", testAllConnections);
 
+
+  $$("[data-setting]").forEach(input => {
+    input.oninput = () => {
+      state.settings[input.dataset.setting] = input.value;
+      persist();
+    };
+  });
+
+  $("#backupJson")?.addEventListener("click", () => {
+    const payload = {
+      exportedAt:new Date().toISOString(),
+      user:session ? {id:session.id,name:session.name,role:session.role} : null,
+      state
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `roteiro-europa-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+    toast("Backup baixado.");
+  });
+
+  $("#backupFile")?.addEventListener("change", async e => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const imported = parsed.state || parsed;
+      state = {...state, ...imported, settings:{...state.settings, ...(imported.settings || {})}};
+      persist("Backup importado.");
+      render();
+    }catch(err){
+      toast("Backup inválido.");
+    }
+  });
+
+  $("#syncNow")?.addEventListener("click", async () => {
+    try{
+      await supabasePush(state);
+      toast("Viagem enviada para nuvem.");
+    }catch(err){
+      toast(err.message);
+    }
+  });
+
+  $("#appLogoutBtn")?.addEventListener("click", doLogout);
+
   bindSupabase();
 }
 
@@ -724,15 +791,10 @@ if(forgotPassButton){
 const openAppButton = $("#openAppBtn");
 if(openAppButton) openAppButton.onclick = showApp;
 const logoutButton = $("#logoutBtn");
-if(logoutButton) logoutButton.onclick = async () => {
-  await logout();
-  session = null; state = null;
-  showLogin();
-  toast("Você saiu.");
-};
+if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=auth-custom-banco-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=viagem-pro-1").catch(()=>{});
 }
 
 async function boot(){

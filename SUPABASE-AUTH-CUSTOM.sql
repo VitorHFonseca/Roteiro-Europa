@@ -2,7 +2,7 @@
 -- Não usa Supabase Auth, não usa e-mail, não dispara confirmação e não sofre limite de e-mail.
 -- Execute inteiro no Supabase > SQL Editor.
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.app_users (
   id uuid primary key default gen_random_uuid(),
@@ -68,7 +68,7 @@ create or replace function public._current_user_id(p_token text)
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user_id uuid;
@@ -93,7 +93,7 @@ create or replace function public._is_admin(p_token text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_ok boolean;
@@ -127,7 +127,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_username text;
@@ -191,7 +191,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_username text;
@@ -239,7 +239,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user_id uuid;
@@ -257,7 +257,7 @@ create or replace function public.app_logout(p_token text)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   delete from public.app_sessions
@@ -272,7 +272,7 @@ create or replace function public.app_save_state(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user_id uuid;
@@ -291,7 +291,7 @@ create or replace function public.app_get_state(p_token text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_user_id uuid;
@@ -320,7 +320,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not public._is_admin(p_token) then
@@ -345,7 +345,7 @@ create or replace function public.admin_create_app_user(
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_username text;
@@ -394,7 +394,7 @@ create or replace function public.admin_set_app_user(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_admin_id uuid;
@@ -428,7 +428,7 @@ create or replace function public.admin_delete_app_user(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_admin_id uuid;
@@ -461,7 +461,7 @@ create or replace function public.admin_change_app_password(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if not public._is_admin(p_token) then

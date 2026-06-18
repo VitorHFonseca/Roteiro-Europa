@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Auth Custom",
-  "short_name": "Europa Auth",
-  "description": "Login por nome e senha no banco, sem Supabase Auth/e-mail.",
-  "start_url": "./?v=auth-custom-banco-1",
+  "name": "Roteiro Europa Viagem Pro",
+  "short_name": "Europa Pro",
+  "description": "Planner de viagem com central offline, backup, emergência e logout.",
+  "start_url": "./?v=viagem-pro-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

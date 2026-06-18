@@ -266,7 +266,17 @@ export function defaultState(){
       supabaseEmail:"",
       currencyFrom:"EUR",
       currencyTo:"BRL",
-      phraseLang:"EN"
+      phraseLang:"EN",
+      emergencyName:"",
+      emergencyPhone:"",
+      emergencyInsurance:"",
+      emergencyPolicy:"",
+      emergencyPassport:"",
+      emergencyEmbassy:"",
+      emergencyHotel:"",
+      emergencyNotes:"",
+      tripStartDate:"",
+      tripEndDate:""
     },
     aiHistory:[]
   };
@@ -282,6 +292,16 @@ function migrate(state){
   state.settings.supabaseAnonKey ||= DEFAULT_SUPABASE_ANON_KEY;
   state.settings.supabaseEmail ||= "";
   state.settings.aiEndpoint ||= "";
+  state.settings.emergencyName ||= "";
+  state.settings.emergencyPhone ||= "";
+  state.settings.emergencyInsurance ||= "";
+  state.settings.emergencyPolicy ||= "";
+  state.settings.emergencyPassport ||= "";
+  state.settings.emergencyEmbassy ||= "";
+  state.settings.emergencyHotel ||= "";
+  state.settings.emergencyNotes ||= "";
+  state.settings.tripStartDate ||= "";
+  state.settings.tripEndDate ||= "";
   return state;
 }
 

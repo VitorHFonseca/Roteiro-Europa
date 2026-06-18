@@ -1,44 +1,46 @@
-# Roteiro Europa — Auth Custom no Banco
+# Roteiro Europa — Viagem Pro
 
-## Por que esta versão existe
+## Análise do que faltava para uso real em viagem
 
-A versão anterior usava Supabase Auth por trás e o Supabase ainda disparava fluxo de e-mail.
-Isso causava erros como:
+Esta versão melhora os pontos essenciais para depender do app durante a viagem:
 
-`email rate limit exceeded`
-
-Esta versão remove totalmente o Supabase Auth/email.
-
-## Agora é assim
-
-- Cadastro: Nome + Senha + Confirmar senha
-- Login: Nome + Senha
-- Usuários ficam na tabela `app_users`
-- Senhas são salvas como hash `crypt()` no banco
-- Sessões ficam na tabela `app_sessions`
-- Dados da viagem ficam na tabela `app_states`
-- Primeiro usuário cadastrado vira ADM
-- Próximos usuários viram comuns
-- ADM pode criar, bloquear, excluir e trocar senha
+1. Botão **Sair** visível depois do login
+2. Central da viagem com próximo dia/foco
+3. Status online/offline
+4. Backup JSON para baixar no celular
+5. Importação de backup
+6. Envio rápido para nuvem
+7. Bloco de emergência offline
+8. Documentos importantes
+9. Base/hospedagem atual
+10. Datas de início/fim da viagem
+11. Correção do SQL para `pgcrypto` no schema `extensions`
 
 ## SQL obrigatório
 
-Rode no Supabase:
+Rode ou atualize com:
 
 `SUPABASE-AUTH-CUSTOM.sql`
 
-Caminho:
+Se já rodou antes e teve erro `gen_salt`, esta versão já vem corrigida com:
 
-Supabase > SQL Editor > New query > colar SQL > Run
+`create extension if not exists pgcrypto with schema extensions`
+
+e funções com:
+
+`set search_path = public, extensions`
 
 ## Publicar
 
-Envie os arquivos para o GitHub Pages e acesse:
+Envie todos os arquivos para o GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=auth-custom-banco-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=viagem-pro-1`
 
-## Troca de senha
+## Uso recomendado na viagem
 
-Usuário comum clica em **Trocar senha** e vê a orientação para falar com Vitor/ADM.
-
-No painel ADM, use **Trocar senha** no usuário desejado.
+- Antes de sair: preencha Central da Viagem
+- Baixe um backup JSON
+- Envie para nuvem
+- Use checklist/mochila offline
+- Salve endereço da hospedagem atual e seguro viagem
+- Se o mapa não carregar, o roteiro e dados continuam funcionando

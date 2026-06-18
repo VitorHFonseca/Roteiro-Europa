@@ -84,12 +84,6 @@ function render(){
     btn.classList.toggle("hidden", !show);
   });
 
-  const navUser = $("#navUser");
-  if(navUser){
-    navUser.classList.toggle("hidden", !session);
-    navUser.textContent = session ? `${session.role === "admin" ? "ADM" : "USER"} · ${session.name || session.username || ""}` : "";
-  }
-
   const sessionUserLabel = $("#sessionUserLabel");
   if(sessionUserLabel){
     sessionUserLabel.textContent = session ? `${session.role === "admin" ? "ADM" : "USER"} · ${session.name || session.username || ""}` : "";
@@ -172,51 +166,107 @@ function autoLodgings(){
 function initLeafletMap(){
   const el = $("#leafletMap");
   if(!el) return;
+
   if(!window.L){
     el.innerHTML = "<div class='empty-state'>Leaflet não carregou. Verifique a conexão.</div>";
     return;
   }
-  if(window.__mochilaoMap){ window.__mochilaoMap.remove(); window.__mochilaoMap = null; }
-  const map = L.map(el, { scrollWheelZoom:true }).setView([50, 9], 4);
+
+  if(window.__mochilaoMap){
+    window.__mochilaoMap.remove();
+    window.__mochilaoMap = null;
+  }
+
+  const map = L.map(el, {
+    scrollWheelZoom:true,
+    worldCopyJump:true
+  }).setView([48.8, 10.5], 4);
+
   window.__mochilaoMap = map;
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:"© OpenStreetMap"}).addTo(map);
-  const routeLatLngs = [];
-  const markers = [];
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:19,
+    attribution:"© OpenStreetMap"
+  }).addTo(map);
+
+  const routeIds = (state.route || []).filter(id => DB[id] && typeof DB[id].lat === "number" && typeof DB[id].lng === "number");
+  const routeLatLngs = routeIds.map(id => [DB[id].lat, DB[id].lng]);
+
+  const markerById = {};
+  const allMarkers = [];
+
   Object.entries(DB).forEach(([id,c]) => {
     if(typeof c.lat !== "number" || typeof c.lng !== "number") return;
-    const inRoute = state.route.includes(id);
+
+    const inRoute = routeIds.includes(id);
+    const routeIndex = routeIds.indexOf(id);
+
     const marker = L.marker([c.lat,c.lng]).addTo(map);
-    markers.push(marker);
-    if(inRoute) routeLatLngs.push([c.lat,c.lng]);
+    markerById[id] = marker;
+    allMarkers.push(marker);
+
+    const orderBadge = inRoute ? `<div class="map-popup-meta">Parada ${routeIndex + 1} no roteiro</div>` : "";
+
     marker.bindPopup(`
       <img class="map-popup-img" src="${c.image}" alt="${c.name}">
       <div class="map-popup-title">${c.flag} ${c.name}</div>
       <div class="map-popup-meta">${c.country} · ${c.vibe}</div>
+      ${orderBadge}
       <button class="map-popup-btn" data-popup-toggle="${id}">${inRoute ? "Remover do roteiro" : "Adicionar ao roteiro"}</button>
     `);
+
     marker.on("popupopen", () => {
       setTimeout(() => {
         document.querySelector(`[data-popup-toggle="${id}"]`)?.addEventListener("click", () => {
-          if(state.route.includes(id)) state.route = state.route.filter(x => x !== id);
-          else { state.route.push(id); state.cityDays[id] ||= c.sugDays || 2; }
+          if(state.route.includes(id)){
+            state.route = state.route.filter(x => x !== id);
+          }else{
+            state.route.push(id);
+            state.cityDays[id] ||= c.sugDays || 2;
+          }
           persist("Roteiro atualizado pelo mapa.");
           render();
         });
       }, 20);
     });
   });
+
   if(routeLatLngs.length > 1){
-    const line = L.polyline(routeLatLngs, {weight:4}).addTo(map);
+    const line = L.polyline(routeLatLngs, {
+      weight:4,
+      opacity:.9,
+      smoothFactor:1.2
+    }).addTo(map);
+
+    // Numera cada parada na ordem real do roteiro
+    routeIds.forEach((id,index) => {
+      const c = DB[id];
+      L.circleMarker([c.lat,c.lng], {
+        radius:13,
+        weight:2,
+        fillOpacity:.95
+      }).addTo(map).bindTooltip(String(index + 1), {
+        permanent:true,
+        direction:"center",
+        className:"route-number-tooltip"
+      });
+    });
+
     map.fitBounds(line.getBounds(), {padding:[35,35]});
   }else if(routeLatLngs.length === 1){
     map.setView(routeLatLngs[0], 8);
-  }else if(markers.length){
-    map.fitBounds(L.featureGroup(markers).getBounds(), {padding:[35,35]});
+  }else if(allMarkers.length){
+    map.fitBounds(L.featureGroup(allMarkers).getBounds(), {padding:[35,35]});
   }
+
   $("#fitMapRoute")?.addEventListener("click", () => {
-    if(routeLatLngs.length > 1) map.fitBounds(L.polyline(routeLatLngs).getBounds(), {padding:[35,35]});
-    else if(routeLatLngs.length === 1) map.setView(routeLatLngs[0], 8);
+    if(routeLatLngs.length > 1){
+      map.fitBounds(L.polyline(routeLatLngs).getBounds(), {padding:[35,35]});
+    }else if(routeLatLngs.length === 1){
+      map.setView(routeLatLngs[0], 8);
+    }
   });
+
   setTimeout(() => map.invalidateSize(), 250);
 }
 
@@ -591,7 +641,6 @@ function bind(){
     }
   });
 
-  $("#appLogoutBtn")?.addEventListener("click", doLogout);
   $("#globalLogoutBtn")?.addEventListener("click", doLogout);
 
   bindSupabase();
@@ -800,7 +849,7 @@ const logoutButton = $("#logoutBtn");
 if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=viagem-pro-logout-fix-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=orcamento-sync-fix-1").catch(()=>{});
 }
 
 async function boot(){

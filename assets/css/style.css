@@ -227,3 +227,23 @@ body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
     padding:.55rem 1rem;
   }
 }
+
+/* Logout único */
+#appLogoutBtn,
+.logout-nav{
+  display:none!important;
+}
+
+/* Correção do mapa: números das paradas */
+.route-number-tooltip{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  color:#09090f!important;
+  font-weight:900!important;
+  font-size:12px!important;
+  font-family:'DM Sans',sans-serif!important;
+}
+.route-number-tooltip::before{
+  display:none!important;
+}

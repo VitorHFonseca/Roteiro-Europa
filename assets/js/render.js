@@ -151,7 +151,7 @@ export function roteiro(state){
   const days = daysFromRoute(state);
   const done = days.filter(d => state.dayDone[d.key]).length;
   const pct = Math.round(done / Math.max(days.length,1) * 100);
-  const totalCost = state.route.reduce((sum,id)=>sum + DB[id].cpd * (state.cityDays[id] || DB[id].sugDays), 0);
+  const totalCost = connectedBudget(state).total;
   const routeNames = state.route.map(id => DB[id]?.name).filter(Boolean).join(" → ");
 
   return `
@@ -180,7 +180,7 @@ export function roteiro(state){
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-label">Duração</div><div class="stat-value">${days.length}</div><div class="stat-sub">dias</div></div>
           <div class="stat-card"><div class="stat-label">Cidades</div><div class="stat-value">${state.route.length}</div><div class="stat-sub">no roteiro</div></div>
-          <div class="stat-card"><div class="stat-label">Custo base</div><div class="stat-value">${euro(totalCost)}</div><div class="stat-sub">dias/cidade</div></div>
+          <div class="stat-card"><div class="stat-label">Orçamento</div><div class="stat-value">${euro(totalCost)}</div><div class="stat-sub">estimado</div></div>
           <div class="stat-card"><div class="stat-label">Feitos</div><div class="stat-value">${done}</div><div class="stat-sub">${pct}%</div></div>
         </div>
 
@@ -583,7 +583,7 @@ export function orcamento(state){
     <div class="section-header">
       <div class="gold-line"></div>
       <h2>Orçamento conectado</h2>
-      <p>O orçamento agora é a conexão entre <strong>Veículos</strong>, <strong>Hospedagens</strong> e <strong>Roteiro</strong>. Comida e turismo são calculados automaticamente pelos dias/cidades.</p>
+      <p>O total acompanha o que você preencher em <strong>Veículos</strong> e <strong>Hospedagens</strong>. <strong>Comida</strong> e <strong>Turismo</strong> continuam automáticos pelos dias/cidades.</p>
     </div>
 
     <div class="budget-total">

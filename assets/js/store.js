@@ -16,14 +16,26 @@ export const supabase = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON
   }
 });
 
-function normalizeEmail(value){
-  return String(value || "").trim().toLowerCase();
+function normalizeUsername(value){
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9_]+/g,"");
+}
+
+function usernameToEmail(username){
+  const clean = normalizeUsername(username);
+  if(!clean) throw new Error("Digite um nome de usuário válido.");
+  return `${clean}@roteiro-europa.app`;
 }
 
 function saveSession(profile){
   const session = {
     id: profile.id,
-    name: profile.name || profile.email || "Usuário",
+    name: profile.name || profile.username || "Usuário",
+    username: profile.username || "",
     email: profile.email || "",
     role: profile.role || "user",
     status: profile.status || "active",
@@ -50,27 +62,33 @@ export async function initializePresetUsers(){
   return saveSession(profile);
 }
 
-export async function register({name,user,password}){
-  const email = normalizeEmail(user);
+export async function register({name,user,password,password2}){
+  const username = normalizeUsername(name || user);
+  if(!username) throw new Error("Digite um nome válido.");
+  if(String(password || "").length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+  if(password !== password2) throw new Error("As senhas não conferem.");
+
+  const email = usernameToEmail(username);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options:{ data:{ name: name || email } }
+    options:{ data:{ name:username, username } }
   });
 
   if(error) throw error;
 
   if(!data.session?.user){
-    throw new Error("Conta criada. Confirme seu e-mail, se o Supabase pedir, e depois faça login.");
+    throw new Error("Conta criada. Entre com o nome e senha. Se não entrar, desative confirmação de e-mail no Supabase.");
   }
 
-  const profile = await ensureProfile(data.session.user, name);
+  const profile = await ensureProfile(data.session.user, username, username);
   return saveSession(profile);
 }
 
 export async function login({user,password}){
-  const email = normalizeEmail(user);
+  const username = normalizeUsername(user);
+  const email = usernameToEmail(username);
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -79,7 +97,7 @@ export async function login({user,password}){
 
   if(error) throw error;
 
-  const profile = await ensureProfile(data.user);
+  const profile = await ensureProfile(data.user, username, username);
 
   if(profile.status === "blocked") {
     await logout();
@@ -99,22 +117,24 @@ export async function logout(){
   localStorage.removeItem(SESSION_KEY);
 }
 
-async function ensureProfile(user, name=""){
+async function ensureProfile(user, name="", username=""){
   if(!user) throw new Error("Usuário Supabase não encontrado.");
 
   await supabase.rpc("claim_first_admin").catch(()=>{});
 
   let { data: profile, error } = await supabase
     .from("profiles")
-    .select("id,email,name,role,status,created_at,updated_at")
+    .select("id,email,username,name,role,status,created_at,updated_at")
     .eq("id", user.id)
     .single();
 
   if(error || !profile){
+    const cleanUsername = normalizeUsername(username || user.user_metadata?.username || user.email?.split("@")[0]);
     const insert = {
       id: user.id,
       email: user.email,
-      name: name || user.user_metadata?.name || user.email,
+      username: cleanUsername,
+      name: name || cleanUsername,
       role: "user",
       status: "active"
     };
@@ -123,7 +143,7 @@ async function ensureProfile(user, name=""){
 
     const result = await supabase
       .from("profiles")
-      .select("id,email,name,role,status,created_at,updated_at")
+      .select("id,email,username,name,role,status,created_at,updated_at")
       .eq("id", user.id)
       .single();
 
@@ -152,10 +172,15 @@ export function adminListUsers(adminSession){
   catch { return []; }
 }
 
-export async function adminCreateUser(adminSession,{name,user,password,role="user"}){
+export async function adminCreateUser(adminSession,{name,user,password,password2,role="user"}){
   if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode criar usuários.");
 
-  const email = normalizeEmail(user);
+  const username = normalizeUsername(user || name);
+  if(!username) throw new Error("Digite um nome de usuário válido.");
+  if(String(password || "").length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+  if(password2 !== undefined && password !== password2) throw new Error("As senhas não conferem.");
+
+  const email = usernameToEmail(username);
 
   const tempClient = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY, {
     auth:{
@@ -169,7 +194,7 @@ export async function adminCreateUser(adminSession,{name,user,password,role="use
   const { data, error } = await tempClient.auth.signUp({
     email,
     password,
-    options:{ data:{ name: name || email } }
+    options:{ data:{ name: name || username, username } }
   });
 
   if(error) throw error;
@@ -210,19 +235,18 @@ export async function adminSetUserRole(adminSession,userId,role){
   await adminRefreshUsers(adminSession);
 }
 
-export async function adminResetPassword(adminSession,userId){
-  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode enviar reset de senha.");
+export async function adminResetPassword(adminSession,userId,password){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode trocar senha.");
+  if(String(password || "").length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres.");
 
-  const users = adminListUsers(adminSession);
-  const target = users.find(u => u.id === userId);
-
-  if(!target?.email) throw new Error("E-mail do usuário não encontrado.");
-
-  const { error } = await supabase.auth.resetPasswordForEmail(target.email, {
-    redirectTo: location.origin + location.pathname
+  const { error } = await supabase.rpc("admin_change_user_password", {
+    target_id:userId,
+    new_password:password
   });
 
   if(error) throw error;
+
+  await adminRefreshUsers(adminSession);
 }
 
 export async function adminDeleteUser(adminSession,userId){
@@ -237,7 +261,7 @@ export async function adminDeleteUser(adminSession,userId){
 }
 
 export function demoSession(){
-  throw new Error("Modo demonstração removido. Use conta Supabase.");
+  throw new Error("Modo demonstração removido. Use conta do banco.");
 }
 
 export function setSession(profile){

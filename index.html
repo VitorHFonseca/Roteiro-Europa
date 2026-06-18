@@ -6,13 +6,13 @@
   <meta name="theme-color" content="#09090f">
   <title>Mochilão Europa Admin Fix Pré-configurado</title>
 
-  <link rel="manifest" href="./manifest.json?v=contas-no-banco-1">
-  <link rel="icon" href="./assets/icons/icon.svg?v=contas-no-banco-1">
+  <link rel="manifest" href="./manifest.json?v=usuario-senha-banco-1">
+  <link rel="icon" href="./assets/icons/icon.svg?v=usuario-senha-banco-1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,700&family=DM+Sans:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="./assets/css/style.css?v=contas-no-banco-1">
+  <link rel="stylesheet" href="./assets/css/style.css?v=usuario-senha-banco-1">
 </head>
 <body>
   <div class="save-indicator" id="saveIndicator">💾 Salvo</div>
@@ -36,27 +36,28 @@
 
         <form id="loginForm" class="auth-form">
           <h2>Entrar no app</h2>
-          <p class="muted">Entre com sua conta do banco Supabase.</p>
-          <label>E-mail</label>
-          <input id="loginUser" required autocomplete="username" placeholder="voce@email.com">
+          <p class="muted">Entre com seu nome e senha.</p>
+          <label>Nome</label>
+          <input id="loginUser" required autocomplete="username" placeholder="ex.: vitor">
           <label>Senha</label>
           <input id="loginPass" required type="password" autocomplete="current-password" placeholder="••••••••">
           <button class="primary-btn full">Entrar</button>
+          <button type="button" id="forgotPassBtn" class="ghost-btn full">Trocar senha</button>
         </form>
 
         <form id="registerForm" class="auth-form hidden">
           <h2>Criar conta no banco</h2>
           <p class="muted">O primeiro cadastro confirmado vira ADM. Os próximos entram como usuários comuns.</p>
           <label>Nome</label>
-          <input id="regName" required placeholder="Seu nome">
-          <label>E-mail</label>
-          <input id="regUser" required autocomplete="username" placeholder="voce@email.com">
+          <input id="regName" required placeholder="ex.: vitor">
           <label>Senha</label>
-          <input id="regPass" required minlength="4" type="password" autocomplete="new-password" placeholder="mínimo 4 caracteres">
+          <input id="regPass" required minlength="6" type="password" autocomplete="new-password" placeholder="mínimo 6 caracteres">
+          <label>Confirmar senha</label>
+          <input id="regPass2" required minlength="6" type="password" autocomplete="new-password" placeholder="repita a senha">
           <button class="primary-btn full">Criar e entrar</button>
         </form>
 
-        <small class="auth-note">🔐 Login local + Supabase opcional para nuvem. Não use senha real de banco ou rede social.</small>
+        <small class="auth-note">🔐 Contas no banco. Para trocar senha, fale com Vitor/ADM.</small>
       </div>
     </div>
   </section>
@@ -102,6 +103,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script type="module" src="./assets/js/app.js?v=contas-no-banco-1"></script>
+  <script type="module" src="./assets/js/app.js?v=usuario-senha-banco-1"></script>
 </body>
 </html>

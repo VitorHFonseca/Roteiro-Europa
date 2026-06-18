@@ -467,8 +467,9 @@ function bind(){
     try{
       await adminCreateUser(session,{
         name:$("#adminUserName").value,
-        user:$("#adminUserId").value,
+        user:$("#adminUserId").value || $("#adminUserName").value,
         password:$("#adminUserPass").value,
+        password2:$("#adminUserPass2")?.value,
         role:$("#adminUserRole").value
       });
       toast("Usuário criado no banco.");
@@ -494,10 +495,13 @@ function bind(){
   });
 
   $$("[data-admin-reset]").forEach(btn => btn.onclick = async () => {
-    if(!confirm("Enviar e-mail de redefinição de senha para este usuário?")) return;
+    const pass = prompt("Digite a nova senha para este usuário:");
+    if(!pass) return;
+    const pass2 = prompt("Confirme a nova senha:");
+    if(pass !== pass2){ toast("As senhas não conferem."); return; }
     try{
-      await adminResetPassword(session, btn.dataset.adminReset);
-      toast("E-mail de redefinição enviado.");
+      await adminResetPassword(session, btn.dataset.adminReset, pass);
+      toast("Senha trocada pelo ADM.");
     }catch(err){ toast(err.message); }
   });
 
@@ -698,13 +702,21 @@ $("#loginForm").addEventListener("submit", async e => {
 $("#registerForm").addEventListener("submit", async e => {
   e.preventDefault();
   try{
-    session = await register({name:$("#regName").value, user:$("#regUser").value, password:$("#regPass").value});
+    session = await register({name:$("#regName").value, user:$("#regName").value, password:$("#regPass").value, password2:$("#regPass2").value});
     state = loadState(session.id);
     await enterAfterAuth();
     toast(session.role === "admin" ? "Conta ADM criada." : "Conta criada.");
   }catch(err){ toast(err.message); }
 });
 
+
+
+const forgotPassButton = $("#forgotPassBtn");
+if(forgotPassButton){
+  forgotPassButton.onclick = () => {
+    alert("Para trocar sua senha, entre em contato com o Vitor. A troca será feita pela conta ADM.");
+  };
+}
 
 const openAppButton = $("#openAppBtn");
 if(openAppButton) openAppButton.onclick = showApp;
@@ -717,7 +729,7 @@ if(logoutButton) logoutButton.onclick = async () => {
 };
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=contas-no-banco-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=usuario-senha-banco-1").catch(()=>{});
 }
 
 async function boot(){

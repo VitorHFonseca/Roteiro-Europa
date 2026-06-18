@@ -599,7 +599,7 @@ export function online(state){
     </div>
 
     <div class="card"><h3>🔐 Entrar na nuvem</h3>
-      <label>E-mail</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com">
+      <label>Nome de usuário</label><input id="supabaseEmail" value="${esc(state.settings.supabaseEmail || "")}" placeholder="voce@email.com">
       <label style="margin-top:.65rem;display:block">Senha</label><input id="supabasePassword" type="password" placeholder="mínimo 6 caracteres">
       <div class="grid two" style="margin-top:.8rem">
         <button class="soft-btn" id="supabaseSignup">Criar conta online</button>
@@ -628,21 +628,21 @@ export function admin(state, users, session){
       <h3>Usuários no banco</h3><p class="muted">O primeiro cadastro confirmado no Supabase vira ADM automaticamente. Novos usuários ficam como usuário comum até o ADM alterar.</p>
       <form id="adminCreateUserForm" class="grid three" style="margin-bottom:1rem">
         <div><label>Nome</label><input id="adminUserName" placeholder="Nome do usuário"></div>
-        <div><label>Usuário/e-mail</label><input id="adminUserId" placeholder="usuario@email.com"></div>
-        <div><label>Senha inicial</label><input id="adminUserPass" type="password" placeholder="mínimo 4 caracteres"></div>
+        <div><label>Usuário/e-mail</label><input id="adminUserId" placeholder="ex.: vitor"></div>
+        <div><label>Senha</label><input id="adminUserPass" type="password" placeholder="mínimo 6 caracteres"></div><div><label>Confirmar senha</label><input id="adminUserPass2" type="password" placeholder="repita a senha"></div>
         <div><label>Perfil</label><select id="adminUserRole"><option value="user">Usuário</option><option value="admin">ADM</option></select></div>
         <button class="primary-btn">Criar usuário no banco</button>
       </form>
 
       ${(users || []).map(u=>`
         <div class="user-row">
-          <div><strong>${esc(u.name || u.id)}</strong><div class="muted">${esc(u.id)}</div></div>
+          <div><strong>${esc(u.name || u.id)}</strong><div class="muted">${esc(u.username || u.email || u.id)}</div></div>
           <div><span class="user-role">${esc(u.role || "user")}</span></div>
           <div><span class="pill">${esc(u.status || "active")}</span></div>
           <div class="mini-actions">
             <button class="soft-btn" data-admin-role="${u.id}" data-role="${u.role === "admin" ? "user" : "admin"}">${u.role === "admin" ? "Tornar usuário" : "Tornar ADM"}</button>
             <button class="soft-btn" data-admin-status="${u.id}" data-status="${u.status === "blocked" ? "active" : "blocked"}">${u.status === "blocked" ? "Ativar" : "Bloquear"}</button>
-            <button class="soft-btn" data-admin-reset="${u.id}">Enviar reset</button>
+            <button class="soft-btn" data-admin-reset="${u.id}">Trocar senha</button>
             <button class="danger-btn" data-admin-delete="${u.id}">Excluir do app</button>
           </div>
         </div>

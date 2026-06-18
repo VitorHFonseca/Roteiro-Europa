@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Orçamento Sync Fix",
-  "short_name": "Europa Budget",
-  "description": "Correção: painel do roteiro usa o mesmo total do orçamento conectado.",
-  "start_url": "./?v=orcamento-sync-fix-1",
+  "name": "Roteiro Europa Principal Solicitações",
+  "short_name": "Europa Principal",
+  "description": "Principal/oficial, minha versão e solicitações aprovadas pelo ADM.",
+  "start_url": "./?v=principal-solicitacoes-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

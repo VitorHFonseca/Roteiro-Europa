@@ -247,3 +247,47 @@ body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
 .route-number-tooltip::before{
   display:none!important;
 }
+
+/* Principal / Minha versão / Solicitações */
+.mode-banner{
+  background:rgba(232,201,122,.08);
+  border:1px solid rgba(232,201,122,.24);
+  color:var(--text);
+  border-radius:var(--radius);
+  padding:1rem;
+  margin-bottom:1rem;
+  display:flex;
+  justify-content:space-between;
+  gap:1rem;
+  align-items:center;
+}
+.mode-banner strong{color:var(--gold)}
+.mode-banner.user{
+  border-color:rgba(96,165,250,.28);
+  background:rgba(96,165,250,.08);
+}
+.request-card{
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:1rem;
+  background:rgba(255,255,255,.025);
+  margin-bottom:.75rem;
+}
+.request-card.pending{border-color:rgba(232,201,122,.32)}
+.request-card.approved{border-color:rgba(74,222,128,.25)}
+.request-card.rejected{border-color:rgba(248,113,113,.25)}
+.request-top{
+  display:flex;
+  justify-content:space-between;
+  gap:.75rem;
+  align-items:flex-start;
+  margin-bottom:.6rem;
+}
+#view.readonly-cover form,
+#view.readonly-cover input,
+#view.readonly-cover select,
+#view.readonly-cover textarea,
+#view.readonly-cover button:not([data-section-go]){
+  pointer-events:none!important;
+  opacity:.55!important;
+}

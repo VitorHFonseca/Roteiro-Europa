@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SESSION_KEY = "roteiroEuropaCustomAuth.session";
 const STATE_KEY = "roteiroEuropaCustomAuth.state";
 const ADMIN_CACHE_KEY = "roteiroEuropaCustomAuth.adminUsers";
+const REQUEST_CACHE_KEY = "roteiroEuropaCustomAuth.requests";
 
 export const DEFAULT_SUPABASE_URL = "https://kkohubqxekingkcaqrlr.supabase.co";
 export const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_UuITrkQf1277L8OzXLPYrA_4GwJcrm8";
@@ -226,6 +227,69 @@ export async function adminDeleteUser(adminSession,userId){
   localStorage.removeItem(`${STATE_KEY}.${userId}`);
   await adminRefreshUsers(adminSession);
 }
+
+
+export async function submitChangeRequest(appSession,{type,title,reason,suggestedState}){
+  if(!appSession || appSession.role === "admin") throw new Error("Apenas usuários comuns enviam solicitações.");
+
+  const { data, error } = await supabase.rpc("app_submit_change_request", {
+    p_token: requireToken(),
+    p_type:type || "geral",
+    p_title:title,
+    p_reason:reason || "",
+    p_suggested_state:suggestedState
+  });
+
+  if(error) throw error;
+  return data;
+}
+
+export async function adminRefreshRequests(adminSession){
+  if(adminSession?.role !== "admin") return [];
+
+  const { data, error } = await supabase.rpc("admin_list_change_requests", {
+    p_token: requireToken()
+  });
+
+  if(error) throw error;
+
+  localStorage.setItem(REQUEST_CACHE_KEY, JSON.stringify(data || []));
+  return data || [];
+}
+
+export function adminListRequests(adminSession){
+  if(adminSession?.role !== "admin") return [];
+
+  try { return JSON.parse(localStorage.getItem(REQUEST_CACHE_KEY) || "[]"); }
+  catch { return []; }
+}
+
+export async function adminApproveRequest(adminSession,requestId,comment=""){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode aprovar solicitações.");
+
+  const { error } = await supabase.rpc("admin_approve_change_request", {
+    p_token: requireToken(),
+    p_request_id:requestId,
+    p_comment:comment || null
+  });
+
+  if(error) throw error;
+  await adminRefreshRequests(adminSession);
+}
+
+export async function adminRejectRequest(adminSession,requestId,comment=""){
+  if(adminSession?.role !== "admin") throw new Error("Apenas ADM pode rejeitar solicitações.");
+
+  const { error } = await supabase.rpc("admin_reject_change_request", {
+    p_token: requireToken(),
+    p_request_id:requestId,
+    p_comment:comment || null
+  });
+
+  if(error) throw error;
+  await adminRefreshRequests(adminSession);
+}
+
 
 export function demoSession(){
   throw new Error("Modo demonstração removido.");

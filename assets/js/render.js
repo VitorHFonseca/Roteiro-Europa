@@ -701,36 +701,54 @@ export function online(state){
   </div>`;
 }
 
-export function admin(state, users, session){
+export function admin(state, users, session, requests=[]){
   const mask = value => value ? "•".repeat(Math.min(18, Math.max(8, String(value).length))) : "não configurado";
+  const pending = (requests || []).filter(r => r.status === "pending");
+  const reviewed = (requests || []).filter(r => r.status !== "pending").slice(0,8);
 
   return `<div class="section-header">
     <div class="gold-line"></div>
     <h2>Administração</h2>
-    <p>Painel do ADM: usuários ficam no Auth custom no banco/app_users; o ADM verifica conexões e gerencia perfis.</p>
+    <p>ADM gerencia usuários e aprova solicitações. As outras abas são apenas visualização do Principal/oficial.</p>
+  </div>
+
+  <div class="grid two" style="margin-bottom:1rem">
+    <div class="card">
+      <h3>📨 Solicitações pendentes</h3>
+      <p class="muted">Quando um usuário quer mudar o Principal, a solicitação aparece aqui. Só ao aprovar o Principal é alterado.</p>
+      ${pending.length ? pending.map(requestCard).join("") : `<div class="empty-state">Nenhuma solicitação pendente.</div>`}
+    </div>
+
+    <div class="card">
+      <h3>📚 Histórico recente</h3>
+      <p class="muted">Últimas solicitações aprovadas ou rejeitadas.</p>
+      ${reviewed.length ? reviewed.map(requestHistoryCard).join("") : `<div class="empty-state">Nenhum histórico ainda.</div>`}
+    </div>
   </div>
 
   <div class="admin-layout">
     <div class="card">
-      <h3>Usuários no banco</h3><p class="muted">O primeiro cadastro confirmado no Supabase vira ADM automaticamente. Novos usuários ficam como usuário comum até o ADM alterar.</p>
+      <h3>Usuários no banco</h3>
+      <p class="muted">Contas ativas. Usuários comuns editam a própria versão e enviam solicitações para alterar o Principal.</p>
       <form id="adminCreateUserForm" class="grid three" style="margin-bottom:1rem">
         <div><label>Nome</label><input id="adminUserName" placeholder="Nome do usuário"></div>
-        <div><label>Usuário/senha</label><input id="adminUserId" placeholder="ex.: vitor"></div>
-        <div><label>Senha</label><input id="adminUserPass" type="password" placeholder="mínimo 6 caracteres"></div><div><label>Confirmar senha</label><input id="adminUserPass2" type="password" placeholder="repita a senha"></div>
+        <div><label>Usuário</label><input id="adminUserId" placeholder="ex.: vitor"></div>
+        <div><label>Senha</label><input id="adminUserPass" type="password" placeholder="mínimo 6 caracteres"></div>
+        <div><label>Confirmar senha</label><input id="adminUserPass2" type="password" placeholder="repita a senha"></div>
         <div><label>Perfil</label><select id="adminUserRole"><option value="user">Usuário</option><option value="admin">ADM</option></select></div>
-        <button class="primary-btn">Criar usuário no banco</button>
+        <button class="primary-btn">Criar usuário</button>
       </form>
 
       ${(users || []).map(u=>`
         <div class="user-row">
-          <div><strong>${esc(u.name || u.id)}</strong><div class="muted">${esc(u.username || u.id)}</div></div>
+          <div><strong>${esc(u.name || u.username || u.id)}</strong><div class="muted">${esc(u.username || u.id)}</div></div>
           <div><span class="user-role">${esc(u.role || "user")}</span></div>
           <div><span class="pill">${esc(u.status || "active")}</span></div>
           <div class="mini-actions">
             <button class="soft-btn" data-admin-role="${u.id}" data-role="${u.role === "admin" ? "user" : "admin"}">${u.role === "admin" ? "Tornar usuário" : "Tornar ADM"}</button>
             <button class="soft-btn" data-admin-status="${u.id}" data-status="${u.status === "blocked" ? "active" : "blocked"}">${u.status === "blocked" ? "Ativar" : "Bloquear"}</button>
             <button class="soft-btn" data-admin-reset="${u.id}">Trocar senha</button>
-            <button class="danger-btn" data-admin-delete="${u.id}">Excluir do app</button>
+            <button class="danger-btn" data-admin-delete="${u.id}">Excluir</button>
           </div>
         </div>
       `).join("")}
@@ -738,7 +756,7 @@ export function admin(state, users, session){
 
     <div class="card">
       <h3>Conexões nativas</h3>
-      <p class="muted">O ADM apenas verifica. URL e chave pública já ficam configuradas no app e são exibidas mascaradas.</p>
+      <p class="muted">O ADM verifica as conexões. URL e chave pública ficam configuradas e mascaradas.</p>
 
       <div class="security-status">
         <div class="status-card" id="adminSupabaseCard">
@@ -747,11 +765,11 @@ export function admin(state, users, session){
         </div>
         <div class="status-card" id="adminDbCard">
           <div class="status-title">Nível 2 · Banco</div>
-          <div class="status-text">Tabela esperada: app_states<br>RLS: obrigatório</div>
+          <div class="status-text">Tabelas: app_master_state, app_states, app_change_requests</div>
         </div>
         <div class="status-card" id="adminAuthCard">
           <div class="status-title">Nível 3 · Auth</div>
-          <div class="status-text">Auth custom no banco + app_users no banco</div>
+          <div class="status-text">Auth custom no banco + app_users</div>
         </div>
         <div class="status-card ok" id="adminLocalAiCard">
           <div class="status-title">Nível 4 · IA local</div>
@@ -766,13 +784,43 @@ export function admin(state, users, session){
 
       <div class="ai-status" id="adminConnectionStatus">Status: aguardando verificação</div>
 
-      <div class="code-box" style="margin-top:1rem">Conexão ativa nativamente:
-- Supabase URL configurada
-- Publishable key configurada
-- Chaves mascaradas na interface
-- ADM não edita a viagem
-- Exclusão de contas locais disponível
-- Para apagar usuário dentro do Auth custom no banco, é necessário backend seguro com service_role</div>
+      <div class="code-box" style="margin-top:1rem">Regras:
+- ADM não edita diretamente o roteiro nas abas normais
+- Usuário edita a própria versão
+- Usuário envia solicitação
+- ADM aprova/rejeita na Administração
+- Aprovação altera o Principal/oficial</div>
     </div>
   </div>`;
+}
+
+function requestCard(r){
+  return `<article class="request-card pending">
+    <div class="request-top">
+      <div>
+        <strong>${esc(r.title || "Solicitação")}</strong>
+        <div class="muted">${esc(r.username || r.name || "usuário")} · ${esc(r.request_type || "geral")} · ${new Date(r.created_at).toLocaleString("pt-BR")}</div>
+      </div>
+      <span class="pill">pendente</span>
+    </div>
+    <p>${esc(r.reason || "Sem motivo informado.")}</p>
+    <div class="mini-actions">
+      <button class="primary-btn" data-approve-request="${r.id}">Aprovar e alterar Principal</button>
+      <button class="danger-btn" data-reject-request="${r.id}">Rejeitar</button>
+    </div>
+  </article>`;
+}
+
+function requestHistoryCard(r){
+  const ok = r.status === "approved";
+  return `<article class="request-card ${ok ? "approved" : "rejected"}">
+    <div class="request-top">
+      <div>
+        <strong>${ok ? "✅" : "❌"} ${esc(r.title || "Solicitação")}</strong>
+        <div class="muted">${esc(r.username || r.name || "usuário")} · ${esc(r.request_type || "geral")}</div>
+      </div>
+      <span class="pill">${esc(r.status)}</span>
+    </div>
+    <p>${esc(r.admin_comment || r.reason || "")}</p>
+  </article>`;
 }

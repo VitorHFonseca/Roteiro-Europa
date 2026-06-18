@@ -497,3 +497,288 @@ grant execute on function public.admin_create_app_user(text,text,text,text,text)
 grant execute on function public.admin_set_app_user(text,uuid,text,text) to anon, authenticated;
 grant execute on function public.admin_delete_app_user(text,uuid) to anon, authenticated;
 grant execute on function public.admin_change_app_password(text,uuid,text) to anon, authenticated;
+
+
+-- ==========================================================
+-- PRINCIPAL / MINHA VERSÃO / SOLICITAÇÕES
+-- ==========================================================
+
+create table if not exists public.app_master_state (
+  id text primary key default 'principal' check (id = 'principal'),
+  state jsonb not null,
+  version integer not null default 1,
+  locked boolean not null default false,
+  updated_by uuid references public.app_users(id) on delete set null,
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.app_change_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.app_users(id) on delete cascade,
+  request_type text not null default 'geral',
+  title text not null,
+  reason text,
+  suggested_state jsonb not null,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  admin_comment text,
+  reviewed_by uuid references public.app_users(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at timestamptz default now()
+);
+
+alter table public.app_master_state enable row level security;
+alter table public.app_change_requests enable row level security;
+
+revoke all on public.app_master_state from anon, authenticated;
+revoke all on public.app_change_requests from anon, authenticated;
+
+create or replace function public.app_save_state(
+  p_token text,
+  p_state jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_user_id uuid;
+begin
+  v_user_id := public._current_user_id(p_token);
+
+  -- Todos, inclusive ADM, salvam aqui apenas sua sessão/local.
+  -- O Principal/oficial só muda quando o ADM aprova uma solicitação.
+  insert into public.app_states (user_id, state, updated_at)
+  values (v_user_id, p_state, now())
+  on conflict (user_id) do update
+    set state = excluded.state,
+        updated_at = now();
+end;
+$$;
+
+create or replace function public.app_get_state(p_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_user_id uuid;
+  v_role text;
+  v_state jsonb;
+begin
+  v_user_id := public._current_user_id(p_token);
+
+  select role
+  into v_role
+  from public.app_users
+  where id = v_user_id;
+
+  if v_role = 'admin' then
+    -- ADM visualiza sempre o Principal. Se ainda não existir, cai para sua cópia local.
+    select state
+    into v_state
+    from public.app_master_state
+    where id = 'principal';
+
+    if v_state is null then
+      select state
+      into v_state
+      from public.app_states
+      where user_id = v_user_id;
+    end if;
+  else
+    -- Usuário usa a própria versão. Se ainda não existir, herda o Principal.
+    select state
+    into v_state
+    from public.app_states
+    where user_id = v_user_id;
+
+    if v_state is null then
+      select state
+      into v_state
+      from public.app_master_state
+      where id = 'principal';
+    end if;
+  end if;
+
+  return v_state;
+end;
+$$;
+
+create or replace function public.app_submit_change_request(
+  p_token text,
+  p_type text,
+  p_title text,
+  p_reason text,
+  p_suggested_state jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_user_id uuid;
+  v_request_id uuid;
+begin
+  v_user_id := public._current_user_id(p_token);
+
+  if coalesce(trim(p_title), '') = '' then
+    raise exception 'title required';
+  end if;
+
+  insert into public.app_change_requests (
+    user_id,
+    request_type,
+    title,
+    reason,
+    suggested_state,
+    status
+  )
+  values (
+    v_user_id,
+    coalesce(nullif(trim(p_type), ''), 'geral'),
+    trim(p_title),
+    p_reason,
+    p_suggested_state,
+    'pending'
+  )
+  returning id into v_request_id;
+
+  return v_request_id;
+end;
+$$;
+
+create or replace function public.admin_list_change_requests(
+  p_token text
+)
+returns table (
+  id uuid,
+  user_id uuid,
+  username text,
+  name text,
+  request_type text,
+  title text,
+  reason text,
+  status text,
+  admin_comment text,
+  created_at timestamptz,
+  reviewed_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if not public._is_admin(p_token) then
+    raise exception 'admin required';
+  end if;
+
+  return query
+  select
+    r.id,
+    r.user_id,
+    u.username,
+    u.name,
+    r.request_type,
+    r.title,
+    r.reason,
+    r.status,
+    r.admin_comment,
+    r.created_at,
+    r.reviewed_at
+  from public.app_change_requests r
+  join public.app_users u on u.id = r.user_id
+  order by
+    case r.status when 'pending' then 0 when 'approved' then 1 else 2 end,
+    r.created_at desc;
+end;
+$$;
+
+create or replace function public.admin_approve_change_request(
+  p_token text,
+  p_request_id uuid,
+  p_comment text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_admin_id uuid;
+  v_request public.app_change_requests%rowtype;
+begin
+  if not public._is_admin(p_token) then
+    raise exception 'admin required';
+  end if;
+
+  v_admin_id := public._current_user_id(p_token);
+
+  select *
+  into v_request
+  from public.app_change_requests
+  where id = p_request_id
+    and status = 'pending';
+
+  if v_request.id is null then
+    raise exception 'request not found or already reviewed';
+  end if;
+
+  insert into public.app_master_state (id, state, version, locked, updated_by, updated_at)
+  values ('principal', v_request.suggested_state, 1, false, v_admin_id, now())
+  on conflict (id) do update
+    set state = excluded.state,
+        version = public.app_master_state.version + 1,
+        updated_by = v_admin_id,
+        updated_at = now();
+
+  update public.app_change_requests
+  set status = 'approved',
+      admin_comment = p_comment,
+      reviewed_by = v_admin_id,
+      reviewed_at = now()
+  where id = p_request_id;
+end;
+$$;
+
+create or replace function public.admin_reject_change_request(
+  p_token text,
+  p_request_id uuid,
+  p_comment text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_admin_id uuid;
+begin
+  if not public._is_admin(p_token) then
+    raise exception 'admin required';
+  end if;
+
+  v_admin_id := public._current_user_id(p_token);
+
+  update public.app_change_requests
+  set status = 'rejected',
+      admin_comment = p_comment,
+      reviewed_by = v_admin_id,
+      reviewed_at = now()
+  where id = p_request_id
+    and status = 'pending';
+
+  if not found then
+    raise exception 'request not found or already reviewed';
+  end if;
+end;
+$$;
+
+grant execute on function public.app_save_state(text,jsonb) to anon, authenticated;
+grant execute on function public.app_get_state(text) to anon, authenticated;
+grant execute on function public.app_submit_change_request(text,text,text,text,jsonb) to anon, authenticated;
+grant execute on function public.admin_list_change_requests(text) to anon, authenticated;
+grant execute on function public.admin_approve_change_request(text,uuid,text) to anon, authenticated;
+grant execute on function public.admin_reject_change_request(text,uuid,text) to anon, authenticated;

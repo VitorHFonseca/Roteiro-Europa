@@ -1,28 +1,52 @@
-# Roteiro Europa — Orçamento Sync Fix
+# Roteiro Europa — Principal + Solicitações
 
-## Correção
+## Nova regra do app
 
-O card do roteiro que antes mostrava **Custo base** agora acompanha o mesmo total do **Orçamento conectado**.
+Esta versão implementa a arquitetura combinada:
 
-Antes:
-- Roteiro mostrava custo antigo por cidade/dia, exemplo `€1.406`
-- Orçamento mostrava o total real conectado, exemplo `€718`
+- ADM visualiza o **Principal/oficial**
+- ADM não edita diretamente roteiro, veículos, hospedagens, orçamento etc.
+- Usuário comum edita a **Minha versão**
+- Usuário comum pode enviar **Solicitação de alteração**
+- ADM aprova ou rejeita na aba **Administração**
+- Só a aprovação do ADM altera o **Principal/oficial**
 
-Agora:
-- O roteiro mostra **Orçamento**
-- O valor vem de:
-  - veículos preenchidos
-  - hospedagens preenchidas
-  - comida automática
-  - turismo automático
-  - extras manuais
+## O que muda na interface
 
-Ou seja, se o orçamento conectado estiver em `€718`, o painel do roteiro também mostra `€718`.
+### Para ADM
+
+- Todas as abas aparecem para visualização
+- Edição direta fica bloqueada
+- Aba Administração mostra:
+  - usuários
+  - solicitações pendentes
+  - histórico recente
+  - conexões
+
+### Para usuários
+
+- Todas as abas continuam editáveis
+- Alterações ficam na própria conta
+- Botão **Solicitar alteração** envia o estado sugerido para o ADM
+
+## SQL obrigatório
+
+Rode novamente:
+
+`SUPABASE-AUTH-CUSTOM.sql`
+
+Ele cria/atualiza:
+
+- `app_master_state`
+- `app_change_requests`
+- funções de aprovação/rejeição
+- `app_get_state`
+- `app_save_state`
 
 ## Publicar
 
 Envie os arquivos para o GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=orcamento-sync-fix-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=principal-solicitacoes-1`
 
 Se aparecer versão antiga, use Ctrl + F5 ou limpe o service worker.

@@ -1,5 +1,5 @@
 import { DB, RATES } from "./data.js";
-import { register, login, logout, getSession, loadState, saveState, initializePresetUsers, adminListUsers, adminRefreshUsers, adminCreateUser, adminSetUserStatus, adminSetUserRole, adminResetPassword, adminDeleteUser } from "./store.js";
+import { register, login, logout, getSession, loadState, saveState, initializePresetUsers, adminListUsers, adminRefreshUsers, adminCreateUser, adminSetUserStatus, adminSetUserRole, adminResetPassword, adminDeleteUser, submitChangeRequest, adminListRequests, adminRefreshRequests, adminApproveRequest, adminRejectRequest } from "./store.js";
 import { $, $$, toast, saved, uid, euro } from "./ui.js";
 import { routeStrip, roteiro, viagem, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin, cityChips, generatedSuggestions, daysFromRoute } from "./render.js";
 import { generateAI } from "./ai.js";
@@ -15,6 +15,57 @@ function persist(message){
   saveState(session.id, state);
   saved();
   if(message) toast(message);
+}
+
+async function hydrateFromCloud(){
+  if(!session || !state) return;
+
+  try{
+    const cloud = await supabasePull();
+    if(cloud?.state){
+      const keepSettings = {...(state.settings || {})};
+      state = {
+        ...state,
+        ...cloud.state,
+        settings:{
+          ...(cloud.state.settings || {}),
+          ...keepSettings
+        }
+      };
+      saveState(session.id, state);
+    }
+  }catch(err){
+    console.warn("Usando versão local/offline:", err);
+  }
+}
+
+function buildPrincipalSuggestion(){
+  const clean = JSON.parse(JSON.stringify(state));
+
+  clean.dayDone = {};
+  clean.dayNotes = {};
+  clean.openDay = null;
+  clean.diary = [];
+  clean.checklist = (clean.checklist || []).map(i => ({...i, done:false}));
+  clean.pack = (clean.pack || []).map(i => ({...i, done:false}));
+
+  clean.settings ||= {};
+  [
+    "emergencyName","emergencyPhone","emergencyInsurance","emergencyPolicy",
+    "emergencyPassport","emergencyEmbassy","emergencyHotel","emergencyNotes"
+  ].forEach(k => clean.settings[k] = "");
+
+  return clean;
+}
+
+function sectionLabel(){
+  const labels = {
+    roteiro:"Roteiro + Mapa", viagem:"Viagem", montador:"Montar", ia:"IA",
+    paises:"Países", veiculos:"Veículos", hospedagens:"Hospedagens",
+    orcamento:"Orçamento", dicas:"Dicas", checklist:"Checklist", mochila:"Mochila",
+    moedas:"Moedas", frases:"Frases", diario:"Diário"
+  };
+  return labels[section] || section;
 }
 
 function showLogin(){
@@ -50,7 +101,11 @@ async function enterAfterAuth(){
   section = session?.role === "admin" ? "admin" : "roteiro";
 
   try{
-    if(session?.role === "admin") await adminRefreshUsers(session);
+    await hydrateFromCloud();
+    if(session?.role === "admin"){
+      await adminRefreshUsers(session);
+      await adminRefreshRequests(session);
+    }
     showApp();
   }catch(err){
     console.error("Erro ao abrir o app depois do login:", err);
@@ -75,35 +130,43 @@ function isAdmin(){ return session?.role === "admin"; }
 function render(){
   renderStrips();
 
-  if(isAdmin()) section = "admin";
   document.body.classList.toggle("admin-mode", isAdmin());
 
   $$(".nav-btn").forEach(btn => {
-    const isLogout = btn.id === "appLogoutBtn";
-    const show = isLogout || !isAdmin() || btn.dataset.section === "admin";
+    const isAdminTab = btn.dataset.section === "admin";
+    const show = !isAdminTab || isAdmin();
     btn.classList.toggle("hidden", !show);
   });
 
   const sessionUserLabel = $("#sessionUserLabel");
   if(sessionUserLabel){
-    sessionUserLabel.textContent = session ? `${session.role === "admin" ? "ADM" : "USER"} · ${session.name || session.username || ""}` : "";
+    const mode = isAdmin() ? "ADM · PRINCIPAL" : "USER · MINHA VERSÃO";
+    sessionUserLabel.textContent = session ? `${mode} · ${session.name || session.username || ""}` : "";
   }
+
   $$(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin()));
 
   if(section === "admin"){
     $("#view").className = "section active";
-    $("#view").innerHTML = admin(state, adminListUsers(session), session);
+    $("#view").innerHTML = admin(state, adminListUsers(session), session, adminListRequests(session));
   }else{
     const view = views[section] || roteiro;
-    $("#view").className = section === "mapa" ? "section full-map active" : "section active";
-    $("#view").innerHTML = view(state);
+    const isReadOnlyPrincipal = isAdmin();
+    $("#view").className = section === "mapa"
+      ? `section full-map active ${isReadOnlyPrincipal ? "readonly-cover" : ""}`
+      : `section active ${isReadOnlyPrincipal ? "readonly-cover" : ""}`;
+
+    const banner = isReadOnlyPrincipal
+      ? `<div class="mode-banner"><div>👑 <strong>ADM visualizando o Principal/oficial.</strong><br><span class="muted">Edição direta bloqueada. O Principal só muda quando você aprova uma solicitação na Administração.</span></div><button class="soft-btn" data-section-go="admin">Ver solicitações</button></div>`
+      : `<div class="mode-banner user"><div>👤 <strong>Minha versão.</strong><br><span class="muted">Suas alterações ficam na sua conta. Para mudar o Principal, envie uma solicitação ao ADM.</span></div><button class="primary-btn" id="requestChangeBtn">Solicitar alteração</button></div>`;
+
+    $("#view").innerHTML = banner + view(state);
   }
 
   $$(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.section && b.dataset.section === section));
   bind();
-  if(!isAdmin() && (section === "mapa" || section === "roteiro")) setTimeout(initLeafletMap, 80);
+  if(section === "mapa" || section === "roteiro") setTimeout(initLeafletMap, 80);
 }
-
 function routeSegments(){
   const segments = [];
   for(let i=0;i<state.route.length-1;i++){
@@ -643,6 +706,52 @@ function bind(){
 
   $("#globalLogoutBtn")?.addEventListener("click", doLogout);
 
+
+  $("#requestChangeBtn")?.addEventListener("click", async () => {
+    try{
+      const defaultTitle = `Alteração em ${sectionLabel()}`;
+      const title = prompt("Título da solicitação:", defaultTitle);
+      if(!title) return;
+
+      const reason = prompt("Explique o motivo da alteração para o ADM:", "");
+      if(reason === null) return;
+
+      await submitChangeRequest(session, {
+        type:sectionLabel(),
+        title,
+        reason,
+        suggestedState:buildPrincipalSuggestion()
+      });
+
+      toast("Solicitação enviada para o ADM.");
+    }catch(err){ toast(err.message); }
+  });
+
+  $$("[data-approve-request]").forEach(btn => btn.onclick = async () => {
+    const comment = prompt("Comentário do ADM ao aprovar:", "Aprovado.");
+    if(comment === null) return;
+
+    try{
+      await adminApproveRequest(session, btn.dataset.approveRequest, comment);
+      await adminRefreshRequests(session);
+      await hydrateFromCloud();
+      toast("Solicitação aprovada. Principal atualizado.");
+      render();
+    }catch(err){ toast(err.message); }
+  });
+
+  $$("[data-reject-request]").forEach(btn => btn.onclick = async () => {
+    const comment = prompt("Motivo da rejeição:", "Rejeitado.");
+    if(comment === null) return;
+
+    try{
+      await adminRejectRequest(session, btn.dataset.rejectRequest, comment);
+      await adminRefreshRequests(session);
+      toast("Solicitação rejeitada.");
+      render();
+    }catch(err){ toast(err.message); }
+  });
+
   bindSupabase();
 }
 
@@ -849,7 +958,7 @@ const logoutButton = $("#logoutBtn");
 if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=orcamento-sync-fix-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=principal-solicitacoes-1").catch(()=>{});
 }
 
 async function boot(){

@@ -189,3 +189,41 @@ body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
   .travel-hero{grid-template-columns:1fr}
   .travel-status-grid{grid-template-columns:1fr}
 }
+
+/* Logout fix: visible for ADM and normal users */
+.session-bar{
+  position:sticky;
+  top:0;
+  z-index:80;
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  gap:.6rem;
+  padding:.55rem max(1rem, calc((100vw - 1180px)/2));
+  background:rgba(8,8,14,.86);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--border);
+}
+.session-bar span{
+  color:var(--hint);
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+}
+#globalLogoutBtn{
+  border:1px solid rgba(239,68,68,.38);
+  background:rgba(239,68,68,.1);
+  color:#fca5a5;
+  border-radius:999px;
+  padding:.45rem .85rem;
+  font-weight:900;
+  cursor:pointer;
+}
+#globalLogoutBtn:hover{
+  background:rgba(239,68,68,.18);
+}
+@media(max-width:740px){
+  .session-bar{
+    justify-content:space-between;
+    padding:.55rem 1rem;
+  }
+}

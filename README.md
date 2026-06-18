@@ -1,46 +1,16 @@
-# Roteiro Europa — Viagem Pro
+# Roteiro Europa — Viagem Pro Logout Fix
 
-## Análise do que faltava para uso real em viagem
+## Correção
 
-Esta versão melhora os pontos essenciais para depender do app durante a viagem:
-
-1. Botão **Sair** visível depois do login
-2. Central da viagem com próximo dia/foco
-3. Status online/offline
-4. Backup JSON para baixar no celular
-5. Importação de backup
-6. Envio rápido para nuvem
-7. Bloco de emergência offline
-8. Documentos importantes
-9. Base/hospedagem atual
-10. Datas de início/fim da viagem
-11. Correção do SQL para `pgcrypto` no schema `extensions`
-
-## SQL obrigatório
-
-Rode ou atualize com:
-
-`SUPABASE-AUTH-CUSTOM.sql`
-
-Se já rodou antes e teve erro `gen_salt`, esta versão já vem corrigida com:
-
-`create extension if not exists pgcrypto with schema extensions`
-
-e funções com:
-
-`set search_path = public, extensions`
+- Botão **Sair** agora aparece para **ADM e usuários comuns**.
+- Foi adicionada uma barra global de sessão no topo do app.
+- Ela mostra o tipo da conta e o nome do usuário.
+- O botão não depende mais da navegação lateral/superior.
 
 ## Publicar
 
 Envie todos os arquivos para o GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=viagem-pro-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=viagem-pro-logout-fix-1`
 
-## Uso recomendado na viagem
-
-- Antes de sair: preencha Central da Viagem
-- Baixe um backup JSON
-- Envie para nuvem
-- Use checklist/mochila offline
-- Salve endereço da hospedagem atual e seguro viagem
-- Se o mapa não carregar, o roteiro e dados continuam funcionando
+Se aparecer versão antiga, use Ctrl + F5 ou limpe o service worker.

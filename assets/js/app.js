@@ -89,6 +89,11 @@ function render(){
     navUser.classList.toggle("hidden", !session);
     navUser.textContent = session ? `${session.role === "admin" ? "ADM" : "USER"} · ${session.name || session.username || ""}` : "";
   }
+
+  const sessionUserLabel = $("#sessionUserLabel");
+  if(sessionUserLabel){
+    sessionUserLabel.textContent = session ? `${session.role === "admin" ? "ADM" : "USER"} · ${session.name || session.username || ""}` : "";
+  }
   $$(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin()));
 
   if(section === "admin"){
@@ -587,6 +592,7 @@ function bind(){
   });
 
   $("#appLogoutBtn")?.addEventListener("click", doLogout);
+  $("#globalLogoutBtn")?.addEventListener("click", doLogout);
 
   bindSupabase();
 }
@@ -794,7 +800,7 @@ const logoutButton = $("#logoutBtn");
 if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=viagem-pro-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=viagem-pro-logout-fix-1").catch(()=>{});
 }
 
 async function boot(){

@@ -1,32 +1,40 @@
-# Roteiro Europa — Grupo Pro
+# Roteiro Europa — Grupo Pro Finance/Edit Fix
 
-## Atualizações desta versão
+## Correções desta versão
 
-- Brasil adicionado ao banco de locais.
-- Veículos agora têm:
-  - país de origem
-  - cidade de origem
-  - país de destino
-  - cidade de destino
-  - data/hora de saída
-  - data/hora de chegada
-  - duração calculada automaticamente
-  - valor em EUR/BRL/outra moeda
-  - conversão automática para EUR no orçamento
-- Orçamento conectado usa o valor convertido dos veículos.
-- Extras manuais continuam individuais do usuário e não entram no Principal/ADM.
-- Checklist, Mochila, Diário e Extras são tratados como dados pessoais.
-- ADM não vê abas pessoais: Checklist, Mochila, Frases, Diário, Online e Moedas.
-- Usuários comuns não veem a aba Online.
-- Frases úteis ampliadas com mais de 50 frases, busca e filtro por país/tipo.
-- Dicas ampliadas por país, tipo, curiosidades e costumes.
-
-## SQL
-
-Continue usando o arquivo `SUPABASE-AUTH-CUSTOM.sql`. Se já rodou a versão anterior de Principal/Solicitações, não precisa recriar usuários.
+- Orçamento passa a puxar corretamente:
+  - veículos
+  - hospedagens/hostels
+  - comida automática
+  - turismo automático
+  - extras manuais apenas do usuário
+- Valores em BRL agora convertem corretamente para EUR.
+- Se existir câmbio absurdo salvo, o app corrige para o câmbio padrão da moeda.
+- Veículos cadastrados agora podem editar:
+  - tipo
+  - país/cidade de origem
+  - país/cidade de destino
+  - saída e chegada
+  - valor/moeda/câmbio
+  - fornecedor/link
+  - observações
+- Hospedagens cadastradas agora podem editar:
+  - tipo
+  - cidade
+  - nome
+  - check-in/check-out
+  - valor
+  - moeda
+  - câmbio
+  - cobrança por noite ou total
+  - status
+  - link/observações
+- Hospedagens autopreenchidas agora já entram com valor estruturado para orçamento.
 
 ## Publicar
 
-Envie para o GitHub Pages e acesse:
+Suba todos os arquivos para o GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=grupo-pro-1`
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=grupo-pro-finance-edit-fix-1`
+
+Use Ctrl + F5 se o navegador carregar versão antiga.

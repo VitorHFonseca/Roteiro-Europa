@@ -300,3 +300,15 @@ body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
 @media(max-width:840px){.filter-card-grid{grid-template-columns:1fr}}
 
 .admin-mode .user-extra-card{display:none!important;}
+
+/* Finance/edit fix */
+.vehicle-card .grid.three,
+.lodging-card .grid.three{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+@media(max-width:800px){
+  .vehicle-card .grid.three,
+  .lodging-card .grid.three{
+    grid-template-columns:1fr;
+  }
+}

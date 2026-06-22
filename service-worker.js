@@ -1,4 +1,4 @@
-const CACHE = "roteiro-europa-grupo-pro-1";
+const CACHE = "roteiro-europa-grupo-pro-finance-edit-fix-1";
 const APP = [
   "./",
   "./index.html",

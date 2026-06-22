@@ -207,11 +207,26 @@ function calcDurationFromDates(departAt, arriveAt){
   const m = mins % 60;
   return `${d ? d + "d " : ""}${h ? h + "h" : ""}${m ? String(m).padStart(2,"0") + "m" : ""}`.trim() || "0m";
 }
+function sanitizeFxRate(currency="EUR", fxRate){
+  const cur = currency || "EUR";
+  const def = Number(RATES[cur] || 1);
+  if(cur === "EUR") return 1;
+  const n = Number(fxRate);
+  if(!Number.isFinite(n) || n <= 0) return def;
+  if(def > 0 && (n > def * 3 || n < def / 3)) return def;
+  return n;
+}
 function convertVehicleCost(amount, currency, fxRate){
   const value = Number(amount || 0);
   const cur = currency || "EUR";
-  const rate = Number(fxRate || RATES[cur] || 1);
+  const rate = sanitizeFxRate(cur, fxRate);
   return cur === "EUR" ? value : value / Math.max(rate,0.0001);
+}
+function normalizeMoneyFields(obj){
+  obj.currency ||= "EUR";
+  obj.fxRate = sanitizeFxRate(obj.currency, obj.fxRate);
+  obj.costAmount = Number(obj.costAmount || 0);
+  return obj;
 }
 function updateVehicleDurationPreview(){
   const out = $("#vehDurationAuto");
@@ -220,15 +235,29 @@ function updateVehicleDurationPreview(){
 function updateVehicleFx(){
   const cur = $("#vehCurrency")?.value || "EUR";
   const fx = $("#vehFxRate");
-  if(fx && (!fx.value || cur !== "BRL")) fx.value = RATES[cur] || 1;
+  if(fx) fx.value = sanitizeFxRate(cur, RATES[cur] || 1);
+}
+function updateLodgingFx(){
+  const cur = $("#lodCurrency")?.value || "EUR";
+  const fx = $("#lodFxRate");
+  if(fx) fx.value = sanitizeFxRate(cur, RATES[cur] || 1);
 }
 function normalizeVehicle(v){
+  normalizeMoneyFields(v);
   v.duration = calcDurationFromDates(v.departAt, v.arriveAt) || v.duration || "";
   v.costEUR = convertVehicleCost(v.costAmount, v.currency, v.fxRate);
   v.cost = v.costAmount ? `${v.currency || "EUR"} ${Number(v.costAmount).toFixed(2)}` : "";
   v.from = v.fromCity || v.from || "";
   v.to = v.toCity || v.to || "";
   return v;
+}
+function normalizeLodging(l){
+  l.currency ||= "EUR";
+  l.fxRate = sanitizeFxRate(l.currency, l.fxRate);
+  l.costAmount = Number(l.costAmount || 0);
+  l.costMode ||= "night";
+  l.cost = l.costAmount ? `${l.currency} ${Number(l.costAmount).toFixed(2)} ${l.costMode === "total" ? "total" : "/noite"}` : (l.cost || "");
+  return l;
 }
 
 function suggestVehicleForSegment(seg){
@@ -270,23 +299,30 @@ function autoBudget(){
 
 
 function autoLodgings(){
-  state.lodgings = state.route.map(id => {
+  state.lodgings = (state.route || []).map(id => {
     const c = DB[id];
-    const nights = Math.max(1, (state.cityDays[id] || c.sugDays || 2) - 1);
-    const type = c.cpd >= 110 ? "hostel" : "hotel";
-    return {
-      id:uid(), type, city:c.name,
-      name:type === "hostel" ? `Hostel central em ${c.name}` : `Hotel econômico em ${c.name}`,
-      checkin:"", checkout:"",
-      cost:`€${Math.round((c.cpd * 0.45) || 40)}/noite`,
-      area:"Perto do centro ou estação principal",
-      link:"", status:"Pesquisando",
-      notes:`Autopreenchido para ${nights} noite(s). Verificar cancelamento grátis, locker/bagagem e distância do transporte.`
-    };
+    const amount = Math.round(Math.max(25, Math.min(85, c.cpd * 0.45)));
+    return normalizeLodging({
+      id:uid(),
+      type:"hostel",
+      city:c.name,
+      name:`Opção em ${c.name}`,
+      checkin:"",
+      checkout:"",
+      costMode:"night",
+      costAmount:amount,
+      currency:"EUR",
+      fxRate:1,
+      area:"Centro / perto de transporte",
+      link:"Booking / Hostelworld",
+      status:"Pesquisando",
+      notes:"Conferir cancelamento, nota, lockers e distância do transporte."
+    });
   });
   persist("Hospedagens autopreenchidas.");
   render();
 }
+
 
 function initLeafletMap(){
   const el = $("#leafletMap");
@@ -519,6 +555,7 @@ function bind(){
   $("#vehDepartAt")?.addEventListener("input", updateVehicleDurationPreview);
   $("#vehArriveAt")?.addEventListener("input", updateVehicleDurationPreview);
   $("#vehCurrency")?.addEventListener("change", updateVehicleFx);
+  $("#lodCurrency")?.addEventListener("change", updateLodgingFx);
 
   $("#vehicleForm")?.addEventListener("submit", e => {
     e.preventDefault();
@@ -553,6 +590,7 @@ function bind(){
     const v = state.vehicles.find(x => x.id === id);
     if(v){
       v[field] = input.type === "number" ? Number(input.value || 0) : input.value;
+      if(field === "currency") v.fxRate = sanitizeFxRate(v.currency, RATES[v.currency] || 1);
       normalizeVehicle(v);
     }
     persist();
@@ -568,11 +606,16 @@ function bind(){
   $("#lodgingForm")?.addEventListener("submit", e => {
     e.preventDefault();
     state.lodgings ||= [];
-    state.lodgings.push({
+    const lodging = normalizeLodging({
       id:uid(), type:$("#lodType").value, city:$("#lodCity").value, name:$("#lodName").value,
-      checkin:$("#lodCheckin").value, checkout:$("#lodCheckout").value, cost:$("#lodCost").value,
+      checkin:$("#lodCheckin").value, checkout:$("#lodCheckout").value,
+      costMode:$("#lodCostMode").value,
+      costAmount:Number($("#lodCostAmount").value || 0),
+      currency:$("#lodCurrency").value,
+      fxRate:Number($("#lodFxRate").value || 1),
       area:$("#lodArea").value, link:$("#lodLink").value, status:$("#lodStatus").value, notes:$("#lodNotes").value
     });
+    state.lodgings.push(lodging);
     persist("Hospedagem adicionada.");
     render();
   });
@@ -581,10 +624,14 @@ function bind(){
     persist("Hospedagem removida.");
     render();
   });
-  $$("[data-lodging-field]").forEach(input => input.oninput = () => {
+  $$("[data-lodging-field]").forEach(input => input.oninput = input.onchange = () => {
     const [id,field] = input.dataset.lodgingField.split(":");
     const l = (state.lodgings || []).find(x => x.id === id);
-    if(l) l[field] = input.value;
+    if(l){
+      l[field] = input.type === "number" ? Number(input.value || 0) : input.value;
+      if(field === "currency") l.fxRate = sanitizeFxRate(l.currency, RATES[l.currency] || 1);
+      normalizeLodging(l);
+    }
     persist();
   });
 
@@ -1041,7 +1088,7 @@ const logoutButton = $("#logoutBtn");
 if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=grupo-pro-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=grupo-pro-finance-edit-fix-1").catch(()=>{});
 }
 
 async function boot(){

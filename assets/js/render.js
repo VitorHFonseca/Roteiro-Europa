@@ -349,17 +349,63 @@ function cityOptions(){
 function currencyOptions(selected="EUR"){
   return VEHICLE_CURRENCIES.map(c=>`<option value="${c}" ${c===selected?"selected":""}>${c}</option>`).join("");
 }
+function sanitizeFxRate(currency="EUR", fxRate){
+  const cur = currency || "EUR";
+  const def = Number(RATES[cur] || 1);
+  if(cur === "EUR") return 1;
+  const n = Number(fxRate);
+  if(!Number.isFinite(n) || n <= 0) return def;
+  // Evita bugs tipo BRL 2765 / 469 = €6; se fugir muito do câmbio base, volta ao padrão.
+  if(def > 0 && (n > def * 3 || n < def / 3)) return def;
+  return n;
+}
+function amountToEuro(amount, currency="EUR", fxRate){
+  const value = Number(amount || 0);
+  if(!value) return 0;
+  const cur = currency || "EUR";
+  if(cur === "EUR") return value;
+  return value / Math.max(sanitizeFxRate(cur, fxRate), 0.0001);
+}
 function vehicleCostEuro(v){
-  if(v.costEUR !== undefined && v.costEUR !== null && !Number.isNaN(Number(v.costEUR))) return Number(v.costEUR) || 0;
-  const amount = Number(v.costAmount || 0);
-  if(amount){
-    const cur = v.currency || "EUR";
-    const rate = Number(v.fxRate || RATES[cur] || 1);
-    return cur === "EUR" ? amount : amount / Math.max(rate,0.0001);
+  if(v.costAmount !== undefined && v.costAmount !== null && Number(v.costAmount || 0) > 0){
+    return amountToEuro(v.costAmount, v.currency || "EUR", v.fxRate);
   }
+  if(v.costEUR !== undefined && v.costEUR !== null && !Number.isNaN(Number(v.costEUR))) return Number(v.costEUR) || 0;
   return parseBudgetValue(v.cost);
 }
+function lodgingCostEuro(l,state){
+  const mode = l.costMode || (/(noite|night|diária|diaria)/i.test(String(l.cost || "")) ? "night" : "total");
+  const nights = Math.max(1, diffNights(l.checkin, l.checkout) || lodgingNightsForCity(state, l.city));
+  if(l.costAmount !== undefined && l.costAmount !== null && Number(l.costAmount || 0) > 0){
+    const base = amountToEuro(l.costAmount, l.currency || "EUR", l.fxRate);
+    return mode === "night" ? base * nights : base;
+  }
+  const parsed = parseBudgetValue(l.cost);
+  return mode === "night" ? parsed * nights : parsed;
+}
+function diffNights(checkin, checkout){
+  if(!checkin || !checkout) return 0;
+  const a = new Date(checkin);
+  const b = new Date(checkout);
+  const diff = b - a;
+  if(!Number.isFinite(diff) || diff <= 0) return 0;
+  return Math.max(1, Math.round(diff / 86400000));
+}
 function vehicleDuration(v){
+  if(v.departAt && v.arriveAt){
+    try{
+      const start = new Date(v.departAt);
+      const end = new Date(v.arriveAt);
+      const diff = end - start;
+      if(Number.isFinite(diff) && diff > 0){
+        const mins = Math.round(diff/60000);
+        const d = Math.floor(mins/1440);
+        const h = Math.floor((mins%1440)/60);
+        const m = mins%60;
+        return `${d ? d+"d " : ""}${h ? h+"h" : ""}${m ? String(m).padStart(2,"0")+"m" : ""}`.trim();
+      }
+    }catch{}
+  }
   return v.duration || "sem duração";
 }
 function fmtDateTime(value){
@@ -373,7 +419,7 @@ export function veiculos(state){
     <div class="section-header">
       <div class="gold-line"></div>
       <h2>Veículos e deslocamentos</h2>
-      <p>Agora cada deslocamento tem país/cidade de origem e destino, data/hora de saída e chegada, duração automática e custo em BRL/EUR com conversão para o orçamento.</p>
+      <p>Cadastre país/cidade de origem e destino, saída/chegada, custo em BRL/EUR e o app calcula duração e orçamento em euro automaticamente.</p>
     </div>
     <div class="mini-actions" style="margin-bottom:1rem">
       <button class="primary-btn" id="autoVehicles">Autopreencher opções do roteiro</button>
@@ -384,14 +430,14 @@ export function veiculos(state){
       <form id="vehicleForm" class="grid three">
         <div><label>Tipo</label><select id="vehType">${typeOptions}</select></div>
         <div><label>País origem</label><select id="vehFromCountry">${countryOptions("Brasil")}</select></div>
-        <div><label>Cidade origem</label><input id="vehFromCity" list="cityNames" placeholder="São Paulo"></div>
-        <div><label>País destino</label><select id="vehToCountry">${countryOptions("Portugal")}</select></div>
-        <div><label>Cidade destino</label><input id="vehToCity" list="cityNames" placeholder="Lisboa"></div>
-        <div><label>Fornecedor/link</label><input id="vehProvider" placeholder="Omio, FlixBus, LATAM, SNCF..."></div>
-        <div><label>Saída</label><input id="vehDepartAt" type="datetime-local"></div>
-        <div><label>Chegada</label><input id="vehArriveAt" type="datetime-local"></div>
+        <div><label>Cidade origem</label><input id="vehFromCity" list="cityNames" placeholder="Belo Horizonte"></div>
+        <div><label>País destino</label><select id="vehToCountry">${countryOptions("Itália")}</select></div>
+        <div><label>Cidade destino</label><input id="vehToCity" list="cityNames" placeholder="Roma"></div>
+        <div><label>Fornecedor/link</label><input id="vehProvider" placeholder="LATAM, Buser, Omio..."></div>
+        <div><label>Data e hora de saída</label><input id="vehDepartAt" type="datetime-local"></div>
+        <div><label>Data e hora de chegada</label><input id="vehArriveAt" type="datetime-local"></div>
         <div><label>Duração automática</label><input id="vehDurationAuto" readonly placeholder="preencha saída e chegada"></div>
-        <div><label>Valor</label><input id="vehCostAmount" type="number" step="0.01" min="0" placeholder="250"></div>
+        <div><label>Valor</label><input id="vehCostAmount" type="number" step="0.01" min="0" placeholder="2765"></div>
         <div><label>Moeda</label><select id="vehCurrency">${currencyOptions("BRL")}</select></div>
         <div><label>Câmbio para EUR</label><input id="vehFxRate" type="number" step="0.01" min="0.01" value="${RATES.BRL || 5.9}"></div>
         <div style="grid-column:1/-1"><label>Observações</label><textarea id="vehNotes" placeholder="Bagagem, terminal, reserva, opção A/B..."></textarea></div>
@@ -416,6 +462,7 @@ function vehicleCard(v){
   const to = `${v.toCountry ? v.toCountry + " · " : ""}${v.toCity || v.to || "-"}`;
   const amount = Number(v.costAmount || 0);
   const cur = v.currency || "EUR";
+  const fx = sanitizeFxRate(cur, v.fxRate);
   const eur = vehicleCostEuro(v);
   return `<article class="vehicle-card">
     <div class="vehicle-head">
@@ -430,18 +477,23 @@ function vehicleCard(v){
       </div>
       <button class="danger-btn" data-del-vehicle="${v.id}">Excluir</button>
     </div>
-    <div class="grid two">
+    <div class="grid three">
+      <div><label>Tipo</label><select data-vehicle-field="${v.id}:type">${VEHICLE_TYPES.map(([value,label])=>`<option value="${value}" ${value===(v.type||"")?"selected":""}>${label}</option>`).join("")}</select></div>
+      <div><label>País origem</label><select data-vehicle-field="${v.id}:fromCountry">${countryOptions(v.fromCountry || "")}</select></div>
+      <div><label>Cidade origem</label><input list="cityNames" data-vehicle-field="${v.id}:fromCity" value="${esc(v.fromCity || v.from || "")}"></div>
+      <div><label>País destino</label><select data-vehicle-field="${v.id}:toCountry">${countryOptions(v.toCountry || "")}</select></div>
+      <div><label>Cidade destino</label><input list="cityNames" data-vehicle-field="${v.id}:toCity" value="${esc(v.toCity || v.to || "")}"></div>
       <div><label>Fornecedor/link</label><input data-vehicle-field="${v.id}:provider" value="${esc(v.provider || "")}"></div>
       <div><label>Valor</label><input type="number" step="0.01" data-vehicle-field="${v.id}:costAmount" value="${esc(v.costAmount || "")}"></div>
       <div><label>Moeda</label><select data-vehicle-field="${v.id}:currency">${currencyOptions(cur)}</select></div>
-      <div><label>Câmbio para EUR</label><input type="number" step="0.01" data-vehicle-field="${v.id}:fxRate" value="${esc(v.fxRate || RATES[cur] || 1)}"></div>
+      <div><label>Câmbio para EUR</label><input type="number" step="0.01" data-vehicle-field="${v.id}:fxRate" value="${esc(fx)}"></div>
       <div><label>Saída</label><input type="datetime-local" data-vehicle-field="${v.id}:departAt" value="${esc(v.departAt || "")}"></div>
       <div><label>Chegada</label><input type="datetime-local" data-vehicle-field="${v.id}:arriveAt" value="${esc(v.arriveAt || "")}"></div>
+      <div><label>Duração</label><input readonly value="${esc(vehicleDuration(v))}"></div>
       <div style="grid-column:1/-1"><label>Observações editáveis</label><textarea data-vehicle-field="${v.id}:notes">${esc(v.notes || "")}</textarea></div>
     </div>
   </article>`;
 }
-
 
 export function hospedagens(state){
   const typeOptions = [
@@ -452,7 +504,7 @@ export function hospedagens(state){
     <div class="section-header">
       <div class="gold-line"></div>
       <h2>Hospedagens</h2>
-      <p>Funciona igual à aba de veículos: começa em branco, você adiciona opções, edita, exclui e pode autopreencher com base no roteiro.</p>
+      <p>Cadastre hospedagens com valor em BRL/EUR, por noite ou total. O orçamento puxa esses valores automaticamente.</p>
     </div>
     <div class="mini-actions" style="margin-bottom:1rem">
       <button class="primary-btn" id="autoLodgings">Autopreencher hospedagens</button>
@@ -466,7 +518,10 @@ export function hospedagens(state){
         <div><label>Nome/opção</label><input id="lodName" placeholder="Hostel perto da estação"></div>
         <div><label>Check-in</label><input id="lodCheckin" type="date"></div>
         <div><label>Check-out</label><input id="lodCheckout" type="date"></div>
-        <div><label>Custo</label><input id="lodCost" placeholder="€80/noite"></div>
+        <div><label>Cobrança</label><select id="lodCostMode"><option value="night">Por noite</option><option value="total">Total da estadia</option></select></div>
+        <div><label>Valor</label><input id="lodCostAmount" type="number" step="0.01" min="0" placeholder="120"></div>
+        <div><label>Moeda</label><select id="lodCurrency">${currencyOptions("EUR")}</select></div>
+        <div><label>Câmbio para EUR</label><input id="lodFxRate" type="number" step="0.01" min="0.01" value="1"></div>
         <div><label>Localização</label><input id="lodArea" placeholder="Centro, estação, bairro..."></div>
         <div><label>Link</label><input id="lodLink" placeholder="Booking, Hostelworld, Airbnb..."></div>
         <div><label>Status</label><select id="lodStatus"><option>Pesquisando</option><option>Favorito</option><option>Reservado</option><option>Pago</option></select></div>
@@ -476,29 +531,40 @@ export function hospedagens(state){
       <datalist id="cityNamesLodging">${Object.values(DB).map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
     </div>
     <div class="grid two" style="margin-top:1rem">
-      ${state.lodgings?.length ? state.lodgings.map(lodgingCard).join("") : `<div class="empty-state" style="grid-column:1/-1">Nenhuma hospedagem adicionada ainda. Use o formulário ou o botão de autopreenchimento.</div>`}
+      ${state.lodgings?.length ? state.lodgings.map(l=>lodgingCard(l,state)).join("") : `<div class="empty-state" style="grid-column:1/-1">Nenhuma hospedagem adicionada ainda. Use o formulário ou o botão de autopreenchimento.</div>`}
     </div>
   `;
 }
 
 function lodgingIcon(type){return {hostel:"🏠",hotel:"🏨",airbnb:"🛋️",quarto:"🛏️",pousada:"🏡",outro:"✨"}[type] || "✨"}
 function lodgingLabel(type){return {hostel:"Hostel",hotel:"Hotel",airbnb:"Airbnb",quarto:"Quarto",pousada:"Pousada",outro:"Outro"}[type] || "Outro"}
-function lodgingCard(l){
+function lodgingCard(l,state){
+  const cur = l.currency || "EUR";
+  const fx = sanitizeFxRate(cur, l.fxRate);
+  const amount = Number(l.costAmount || 0);
+  const eur = lodgingCostEuro(l,state || {route:[],cityDays:{}});
+  const nights = diffNights(l.checkin,l.checkout) || "auto";
   return `<article class="lodging-card">
     <div class="lodging-head">
       <div>
         <div class="lodging-title">${lodgingIcon(l.type)} ${esc(l.city || "-")} · ${esc(l.name || "Opção sem nome")}</div>
-        <div class="lodging-meta"><span class="pill">${esc(lodgingLabel(l.type))}</span><span class="pill">${esc(l.status || "Pesquisando")}</span><span class="pill">${esc(l.cost || "sem custo")}</span></div>
+        <div class="lodging-meta"><span class="pill">${esc(lodgingLabel(l.type))}</span><span class="pill">${esc(l.status || "Pesquisando")}</span><span class="pill">${amount ? `${cur} ${amount.toFixed(2)} ${l.costMode==="total"?"total":"noite"} ≈ ${euro(eur)}` : esc(l.cost || "sem custo")}</span><span class="pill">${nights} noite(s)</span></div>
       </div>
-      <button class="danger-btn" data-del-lodging="${l.id}">Excluir do app</button>
+      <button class="danger-btn" data-del-lodging="${l.id}">Excluir</button>
     </div>
-    <div class="grid two">
+    <div class="grid three">
+      <div><label>Tipo</label><select data-lodging-field="${l.id}:type">${[["hostel","🏠 Hostel"],["hotel","🏨 Hotel"],["airbnb","🛋️ Airbnb"],["quarto","🛏️ Quarto"],["pousada","🏡 Pousada"],["outro","✨ Outro"]].map(([v,label])=>`<option value="${v}" ${v===(l.type||"")?"selected":""}>${label}</option>`).join("")}</select></div>
+      <div><label>Cidade</label><input list="cityNamesLodging" data-lodging-field="${l.id}:city" value="${esc(l.city || "")}"></div>
       <div><label>Nome/opção</label><input data-lodging-field="${l.id}:name" value="${esc(l.name || "")}"></div>
-      <div><label>Custo</label><input data-lodging-field="${l.id}:cost" value="${esc(l.cost || "")}"></div>
       <div><label>Check-in</label><input type="date" data-lodging-field="${l.id}:checkin" value="${esc(l.checkin || "")}"></div>
       <div><label>Check-out</label><input type="date" data-lodging-field="${l.id}:checkout" value="${esc(l.checkout || "")}"></div>
+      <div><label>Cobrança</label><select data-lodging-field="${l.id}:costMode"><option value="night" ${(l.costMode||"night")==="night"?"selected":""}>Por noite</option><option value="total" ${l.costMode==="total"?"selected":""}>Total</option></select></div>
+      <div><label>Valor</label><input type="number" step="0.01" data-lodging-field="${l.id}:costAmount" value="${esc(l.costAmount || "")}"></div>
+      <div><label>Moeda</label><select data-lodging-field="${l.id}:currency">${currencyOptions(cur)}</select></div>
+      <div><label>Câmbio para EUR</label><input type="number" step="0.01" data-lodging-field="${l.id}:fxRate" value="${esc(fx)}"></div>
       <div><label>Localização</label><input data-lodging-field="${l.id}:area" value="${esc(l.area || "")}"></div>
       <div><label>Link</label><input data-lodging-field="${l.id}:link" value="${esc(l.link || "")}"></div>
+      <div><label>Status</label><select data-lodging-field="${l.id}:status">${["Pesquisando","Favorito","Reservado","Pago"].map(s=>`<option ${s===(l.status||"")?"selected":""}>${s}</option>`).join("")}</select></div>
       <div style="grid-column:1/-1"><label>Observações editáveis</label><textarea data-lodging-field="${l.id}:notes">${esc(l.notes || "")}</textarea></div>
     </div>
   </article>`;
@@ -571,11 +637,24 @@ export function paises(state){
 
 
 function parseBudgetValue(raw){
-  const text = String(raw || "").replaceAll(",", ".");
+  const original = String(raw || "");
+  const text = original.replaceAll(",", ".");
   const nums = text.match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
   if(!nums.length) return 0;
-  if(nums.length >= 2 && /-| a |até/i.test(text)) return Math.round((nums[0] + nums[1]) / 2);
-  return nums[0];
+  let value = nums[0];
+  if(nums.length >= 2 && /-| a |até/i.test(text)) value = (nums[0] + nums[1]) / 2;
+
+  const upper = original.toUpperCase();
+  let currency = "EUR";
+  if(/R\$|BRL|REAL|REAIS/.test(upper)) currency = "BRL";
+  else if(/CHF|FRANCO/.test(upper)) currency = "CHF";
+  else if(/GBP|LIBRA|£/.test(upper)) currency = "GBP";
+  else if(/USD|US\$|DÓLAR|DOLAR/.test(upper)) currency = "USD";
+  else if(/CZK|COROA TCHECA/.test(upper)) currency = "CZK";
+  else if(/DKK|COROA DINAMARQUESA/.test(upper)) currency = "DKK";
+  else if(/HUF|FORINT/.test(upper)) currency = "HUF";
+
+  return amountToEuro(value, currency, RATES[currency]);
 }
 
 function routeDaysCount(state){
@@ -594,11 +673,7 @@ function connectedBudget(state){
 
   const vehicles = (state.vehicles || []).reduce((sum,v) => sum + vehicleCostEuro(v), 0);
 
-  const lodgings = (state.lodgings || []).reduce((sum,l) => {
-    const value = parseBudgetValue(l.cost);
-    const perNight = /noite|night|diária|diaria/i.test(String(l.cost || ""));
-    return sum + (perNight ? value * lodgingNightsForCity(state,l.city) : value);
-  }, 0);
+  const lodgings = (state.lodgings || []).reduce((sum,l) => sum + lodgingCostEuro(l,state), 0);
 
   const food = state.route.reduce((sum,id) => {
     const c = DB[id];

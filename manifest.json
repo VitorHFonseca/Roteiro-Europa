@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Grupo Pro",
-  "short_name": "Europa Grupo",
-  "description": "Veículos por país/cidade, orçamento por perfil, frases e dicas ampliadas.",
-  "start_url": "./?v=grupo-pro-1",
+  "name": "Roteiro Europa Grupo Pro Finance Fix",
+  "short_name": "Europa Finance",
+  "description": "Correção do orçamento automático, câmbio BRL/EUR e edição de veículos/hospedagens.",
+  "start_url": "./?v=grupo-pro-finance-edit-fix-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

@@ -251,6 +251,32 @@ function normalizeVehicle(v){
   v.to = v.toCity || v.to || "";
   return v;
 }
+function extractMoneyValue(raw){
+  const text = String(raw || "").replaceAll(",", ".");
+  const nums = text.match(/\d+(?:\.\d+)?/g)?.map(Number) || [];
+  if(!nums.length) return 0;
+  if(nums.length >= 2 && /-| a |até/i.test(text)) return (nums[0] + nums[1]) / 2;
+  return nums[0];
+}
+function inferCurrencyFromText(raw){
+  const upper = String(raw || "").toUpperCase();
+  if(/R\$|BRL|REAL|REAIS/.test(upper)) return "BRL";
+  if(/CHF|FRANCO/.test(upper)) return "CHF";
+  if(/GBP|LIBRA|£/.test(upper)) return "GBP";
+  if(/USD|US\$|DÓLAR|DOLAR/.test(upper)) return "USD";
+  if(/CZK|COROA TCHECA/.test(upper)) return "CZK";
+  if(/DKK|COROA DINAMARQUESA/.test(upper)) return "DKK";
+  if(/HUF|FORINT/.test(upper)) return "HUF";
+  return "EUR";
+}
+function inferCostModeFromText(raw){
+  return /noite|night|diária|diaria|\/noite|por noite/i.test(String(raw || "")) ? "night" : "total";
+}
+function formValue(selector, fallback=""){
+  const el = $(selector);
+  return el ? el.value : fallback;
+}
+
 function normalizeLodging(l){
   l.currency ||= "EUR";
   l.fxRate = sanitizeFxRate(l.currency, l.fxRate);
@@ -605,34 +631,68 @@ function bind(){
   });
   $("#lodgingForm")?.addEventListener("submit", e => {
     e.preventDefault();
-    state.lodgings ||= [];
-    const lodging = normalizeLodging({
-      id:uid(), type:$("#lodType").value, city:$("#lodCity").value, name:$("#lodName").value,
-      checkin:$("#lodCheckin").value, checkout:$("#lodCheckout").value,
-      costMode:$("#lodCostMode").value,
-      costAmount:Number($("#lodCostAmount").value || 0),
-      currency:$("#lodCurrency").value,
-      fxRate:Number($("#lodFxRate").value || 1),
-      area:$("#lodArea").value, link:$("#lodLink").value, status:$("#lodStatus").value, notes:$("#lodNotes").value
-    });
-    state.lodgings.push(lodging);
-    persist("Hospedagem adicionada.");
-    render();
+
+    try{
+      state.lodgings ||= [];
+
+      // Compatibilidade: funciona com o formulário novo e também com o formulário antigo que tinha só "Custo".
+      const rawCost = formValue("#lodCost", "");
+      const currency = formValue("#lodCurrency", inferCurrencyFromText(rawCost) || "EUR");
+      const costMode = formValue("#lodCostMode", inferCostModeFromText(rawCost));
+      const costAmount = Number(formValue("#lodCostAmount", "")) || extractMoneyValue(rawCost);
+      const fxRate = Number(formValue("#lodFxRate", "")) || sanitizeFxRate(currency, RATES[currency] || 1);
+
+      const lodging = normalizeLodging({
+        id:uid(),
+        type:formValue("#lodType","hostel"),
+        city:formValue("#lodCity",""),
+        name:formValue("#lodName",""),
+        checkin:formValue("#lodCheckin",""),
+        checkout:formValue("#lodCheckout",""),
+        costMode,
+        costAmount,
+        currency,
+        fxRate,
+        cost: rawCost,
+        area:formValue("#lodArea",""),
+        link:formValue("#lodLink",""),
+        status:formValue("#lodStatus","Pesquisando"),
+        notes:formValue("#lodNotes","")
+      });
+
+      if(!lodging.city && !lodging.name){
+        toast("Preencha pelo menos a cidade ou o nome da hospedagem.");
+        return;
+      }
+
+      state.lodgings.push(lodging);
+      persist("Hospedagem adicionada.");
+      render();
+    }catch(err){
+      console.error("Erro ao adicionar hospedagem:", err);
+      toast("Erro ao adicionar hospedagem: " + err.message);
+    }
   });
+
   $$("[data-del-lodging]").forEach(btn => btn.onclick = () => {
     state.lodgings = (state.lodgings || []).filter(l => l.id !== btn.dataset.delLodging);
     persist("Hospedagem removida.");
     render();
   });
   $$("[data-lodging-field]").forEach(input => input.oninput = input.onchange = () => {
-    const [id,field] = input.dataset.lodgingField.split(":");
-    const l = (state.lodgings || []).find(x => x.id === id);
-    if(l){
-      l[field] = input.type === "number" ? Number(input.value || 0) : input.value;
-      if(field === "currency") l.fxRate = sanitizeFxRate(l.currency, RATES[l.currency] || 1);
-      normalizeLodging(l);
+    try{
+      const [id,field] = input.dataset.lodgingField.split(":");
+      const l = (state.lodgings || []).find(x => x.id === id);
+      if(l){
+        l[field] = input.type === "number" ? Number(input.value || 0) : input.value;
+        if(field === "currency") l.fxRate = sanitizeFxRate(l.currency, RATES[l.currency] || 1);
+        normalizeLodging(l);
+      }
+      persist();
+    }catch(err){
+      console.error("Erro editando hospedagem:", err);
+      toast("Erro ao editar hospedagem: " + err.message);
     }
-    persist();
   });
 
   $$("[data-ai-mode]").forEach(btn => btn.onclick = async () => {
@@ -1088,7 +1148,7 @@ const logoutButton = $("#logoutBtn");
 if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=grupo-pro-finance-edit-fix-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=hospedagem-add-fix-1").catch(()=>{});
 }
 
 async function boot(){
@@ -1109,3 +1169,8 @@ async function boot(){
 }
 
 boot();
+
+
+window.addEventListener("error", event => {
+  console.error(event.error || event.message);
+});

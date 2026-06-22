@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Grupo Pro Finance Fix",
-  "short_name": "Europa Finance",
-  "description": "Correção do orçamento automático, câmbio BRL/EUR e edição de veículos/hospedagens.",
-  "start_url": "./?v=grupo-pro-finance-edit-fix-1",
+  "name": "Roteiro Europa Hospedagem Fix",
+  "short_name": "Europa Fix",
+  "description": "Correção para adicionar hospedagem com formulário novo ou antigo.",
+  "start_url": "./?v=hospedagem-add-fix-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

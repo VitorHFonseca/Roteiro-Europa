@@ -1,8 +1,8 @@
 {
-  "name": "Roteiro Europa Principal Solicitações",
-  "short_name": "Europa Principal",
-  "description": "Principal/oficial, minha versão e solicitações aprovadas pelo ADM.",
-  "start_url": "./?v=principal-solicitacoes-1",
+  "name": "Roteiro Europa Grupo Pro",
+  "short_name": "Europa Grupo",
+  "description": "Veículos por país/cidade, orçamento por perfil, frases e dicas ampliadas.",
+  "start_url": "./?v=grupo-pro-1",
   "scope": "./",
   "display": "standalone",
   "background_color": "#09090f",

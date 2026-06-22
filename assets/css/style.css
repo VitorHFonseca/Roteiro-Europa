@@ -291,3 +291,12 @@ body.admin-mode .main-nav .nav-inner{justify-content:flex-start}
   pointer-events:none!important;
   opacity:.55!important;
 }
+
+/* Grupo Pro - veículos, filtros e cards */
+.vehicle-card .vehicle-meta{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.45rem}
+.request-card{margin-bottom:1rem}
+.phrases-grid{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.filter-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}
+@media(max-width:840px){.filter-card-grid{grid-template-columns:1fr}}
+
+.admin-mode .user-extra-card{display:none!important;}

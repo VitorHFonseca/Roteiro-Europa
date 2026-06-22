@@ -8,13 +8,23 @@ import { isSupabaseConfigured, supabaseCurrentUser, supabaseSignUp, supabaseSign
 let session = getSession();
 let state = session ? loadState(session.id) : null;
 let section = "roteiro";
+let cloudSaveTimer = null;
 
 const views = { roteiro, viagem, montador, mapa, ia, paises, veiculos, hospedagens, orcamento, dicas, checklist, mochila, moedas, frases, diario, online, admin };
 
 function persist(message){
   saveState(session.id, state);
   saved();
+  if(session && !isAdmin()) scheduleProfileCloudSave();
   if(message) toast(message);
+}
+
+function scheduleProfileCloudSave(){
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer = setTimeout(async () => {
+    try{ await supabasePush(state); saved(); }
+    catch(err){ console.warn("Autosave do perfil falhou:", err); }
+  }, 1000);
 }
 
 async function hydrateFromCloud(){
@@ -46,6 +56,8 @@ function buildPrincipalSuggestion(){
   clean.dayNotes = {};
   clean.openDay = null;
   clean.diary = [];
+  clean.expenses = [];
+  clean.aiHistory = [];
   clean.checklist = (clean.checklist || []).map(i => ({...i, done:false}));
   clean.pack = (clean.pack || []).map(i => ({...i, done:false}));
 
@@ -133,8 +145,13 @@ function render(){
   document.body.classList.toggle("admin-mode", isAdmin());
 
   $$(".nav-btn").forEach(btn => {
-    const isAdminTab = btn.dataset.section === "admin";
-    const show = !isAdminTab || isAdmin();
+    const sec = btn.dataset.section;
+    const isAdminTab = sec === "admin";
+    const hiddenForAdmin = new Set(["checklist","mochila","frases","diario","online","moedas"]);
+    const hiddenForUser = new Set(["online"]);
+    const show = sec
+      ? ((!isAdminTab || isAdmin()) && !(isAdmin() ? hiddenForAdmin.has(sec) : hiddenForUser.has(sec)))
+      : true;
     btn.classList.toggle("hidden", !show);
   });
 
@@ -177,15 +194,60 @@ function routeSegments(){
   return segments;
 }
 
+
+function calcDurationFromDates(departAt, arriveAt){
+  if(!departAt || !arriveAt) return "";
+  const start = new Date(departAt);
+  const end = new Date(arriveAt);
+  const diff = end - start;
+  if(!Number.isFinite(diff) || diff <= 0) return "";
+  const mins = Math.round(diff / 60000);
+  const d = Math.floor(mins / 1440);
+  const h = Math.floor((mins % 1440) / 60);
+  const m = mins % 60;
+  return `${d ? d + "d " : ""}${h ? h + "h" : ""}${m ? String(m).padStart(2,"0") + "m" : ""}`.trim() || "0m";
+}
+function convertVehicleCost(amount, currency, fxRate){
+  const value = Number(amount || 0);
+  const cur = currency || "EUR";
+  const rate = Number(fxRate || RATES[cur] || 1);
+  return cur === "EUR" ? value : value / Math.max(rate,0.0001);
+}
+function updateVehicleDurationPreview(){
+  const out = $("#vehDurationAuto");
+  if(out) out.value = calcDurationFromDates($("#vehDepartAt")?.value, $("#vehArriveAt")?.value);
+}
+function updateVehicleFx(){
+  const cur = $("#vehCurrency")?.value || "EUR";
+  const fx = $("#vehFxRate");
+  if(fx && (!fx.value || cur !== "BRL")) fx.value = RATES[cur] || 1;
+}
+function normalizeVehicle(v){
+  v.duration = calcDurationFromDates(v.departAt, v.arriveAt) || v.duration || "";
+  v.costEUR = convertVehicleCost(v.costAmount, v.currency, v.fxRate);
+  v.cost = v.costAmount ? `${v.currency || "EUR"} ${Number(v.costAmount).toFixed(2)}` : "";
+  v.from = v.fromCity || v.from || "";
+  v.to = v.toCity || v.to || "";
+  return v;
+}
+
 function suggestVehicleForSegment(seg){
   const long = ["Lisboa","Atenas","Copenhague"].includes(seg.from) || ["Lisboa","Atenas","Copenhague"].includes(seg.to);
   return {
     id:uid(),
     type: long ? "aviao" : "trem",
+    fromCountry:seg.fromCountry || "",
+    fromCity:seg.from,
+    toCountry:seg.toCountry || "",
+    toCity:seg.to,
     from:seg.from,
     to:seg.to,
     duration: long ? "2h-4h" : "2h-7h",
-    cost: long ? "€60-160" : "€25-120",
+    costAmount: long ? 110 : 60,
+    currency:"EUR",
+    fxRate:1,
+    costEUR: long ? 110 : 60,
+    cost: long ? "EUR 110.00" : "EUR 60.00",
     provider: long ? "Skyscanner / Google Flights" : "Omio / Trainline / site oficial",
     notes: long ? "Opção rápida. Verificar bagagem e deslocamento até aeroporto." : "Opção confortável. Comparar preço com ônibus e reservar cedo."
   };
@@ -454,18 +516,28 @@ function bind(){
   $("#autoVehicles")?.addEventListener("click", autoVehicles);
   $("#clearVehicles")?.addEventListener("click", () => { state.vehicles = []; persist("Veículos limpos."); render(); });
 
+  $("#vehDepartAt")?.addEventListener("input", updateVehicleDurationPreview);
+  $("#vehArriveAt")?.addEventListener("input", updateVehicleDurationPreview);
+  $("#vehCurrency")?.addEventListener("change", updateVehicleFx);
+
   $("#vehicleForm")?.addEventListener("submit", e => {
     e.preventDefault();
-    state.vehicles.push({
+    const vehicle = normalizeVehicle({
       id:uid(),
       type:$("#vehType").value,
-      from:$("#vehFrom").value,
-      to:$("#vehTo").value,
-      duration:$("#vehDuration").value,
-      cost:$("#vehCost").value,
+      fromCountry:$("#vehFromCountry").value,
+      fromCity:$("#vehFromCity").value,
+      toCountry:$("#vehToCountry").value,
+      toCity:$("#vehToCity").value,
+      departAt:$("#vehDepartAt").value,
+      arriveAt:$("#vehArriveAt").value,
+      costAmount:Number($("#vehCostAmount").value || 0),
+      currency:$("#vehCurrency").value,
+      fxRate:Number($("#vehFxRate").value || 1),
       provider:$("#vehProvider").value,
       notes:$("#vehNotes").value
     });
+    state.vehicles.push(vehicle);
     persist("Veículo adicionado.");
     render();
   });
@@ -476,10 +548,13 @@ function bind(){
     render();
   });
 
-  $$("[data-vehicle-field]").forEach(input => input.oninput = () => {
+  $$("[data-vehicle-field]").forEach(input => input.oninput = input.onchange = () => {
     const [id,field] = input.dataset.vehicleField.split(":");
     const v = state.vehicles.find(x => x.id === id);
-    if(v) v[field] = input.value;
+    if(v){
+      v[field] = input.type === "number" ? Number(input.value || 0) : input.value;
+      normalizeVehicle(v);
+    }
     persist();
   });
 
@@ -576,6 +651,14 @@ function bind(){
     persist();
     render();
   });
+
+
+  $("#phraseCountry")?.addEventListener("change", e => { state.settings.phraseCountry = e.target.value; persist(); render(); });
+  $("#phraseCategory")?.addEventListener("change", e => { state.settings.phraseCategory = e.target.value; persist(); render(); });
+  $("#phraseSearch")?.addEventListener("input", e => { state.settings.phraseSearch = e.target.value; persist(); render(); });
+  $("#tipCountry")?.addEventListener("change", e => { state.settings.tipCountry = e.target.value; persist(); render(); });
+  $("#tipType")?.addEventListener("change", e => { state.settings.tipType = e.target.value; persist(); render(); });
+  $("#tipSearch")?.addEventListener("input", e => { state.settings.tipSearch = e.target.value; persist(); render(); });
 
   $$("[data-copy]").forEach(card => card.onclick = async () => {
     await navigator.clipboard?.writeText(card.dataset.copy);
@@ -958,7 +1041,7 @@ const logoutButton = $("#logoutBtn");
 if(logoutButton) logoutButton.onclick = doLogout;
 
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("./service-worker.js?v=principal-solicitacoes-1").catch(()=>{});
+  navigator.serviceWorker.register("./service-worker.js?v=grupo-pro-1").catch(()=>{});
 }
 
 async function boot(){

@@ -1,52 +1,32 @@
-# Roteiro Europa — Principal + Solicitações
+# Roteiro Europa — Grupo Pro
 
-## Nova regra do app
+## Atualizações desta versão
 
-Esta versão implementa a arquitetura combinada:
+- Brasil adicionado ao banco de locais.
+- Veículos agora têm:
+  - país de origem
+  - cidade de origem
+  - país de destino
+  - cidade de destino
+  - data/hora de saída
+  - data/hora de chegada
+  - duração calculada automaticamente
+  - valor em EUR/BRL/outra moeda
+  - conversão automática para EUR no orçamento
+- Orçamento conectado usa o valor convertido dos veículos.
+- Extras manuais continuam individuais do usuário e não entram no Principal/ADM.
+- Checklist, Mochila, Diário e Extras são tratados como dados pessoais.
+- ADM não vê abas pessoais: Checklist, Mochila, Frases, Diário, Online e Moedas.
+- Usuários comuns não veem a aba Online.
+- Frases úteis ampliadas com mais de 50 frases, busca e filtro por país/tipo.
+- Dicas ampliadas por país, tipo, curiosidades e costumes.
 
-- ADM visualiza o **Principal/oficial**
-- ADM não edita diretamente roteiro, veículos, hospedagens, orçamento etc.
-- Usuário comum edita a **Minha versão**
-- Usuário comum pode enviar **Solicitação de alteração**
-- ADM aprova ou rejeita na aba **Administração**
-- Só a aprovação do ADM altera o **Principal/oficial**
+## SQL
 
-## O que muda na interface
-
-### Para ADM
-
-- Todas as abas aparecem para visualização
-- Edição direta fica bloqueada
-- Aba Administração mostra:
-  - usuários
-  - solicitações pendentes
-  - histórico recente
-  - conexões
-
-### Para usuários
-
-- Todas as abas continuam editáveis
-- Alterações ficam na própria conta
-- Botão **Solicitar alteração** envia o estado sugerido para o ADM
-
-## SQL obrigatório
-
-Rode novamente:
-
-`SUPABASE-AUTH-CUSTOM.sql`
-
-Ele cria/atualiza:
-
-- `app_master_state`
-- `app_change_requests`
-- funções de aprovação/rejeição
-- `app_get_state`
-- `app_save_state`
+Continue usando o arquivo `SUPABASE-AUTH-CUSTOM.sql`. Se já rodou a versão anterior de Principal/Solicitações, não precisa recriar usuários.
 
 ## Publicar
 
-Envie os arquivos para o GitHub Pages e acesse:
+Envie para o GitHub Pages e acesse:
 
-`https://vitorhfonseca.github.io/Roteiro-Europa/?v=principal-solicitacoes-1`
-
-Se aparecer versão antiga, use Ctrl + F5 ou limpe o service worker.
+`https://vitorhfonseca.github.io/Roteiro-Europa/?v=grupo-pro-1`

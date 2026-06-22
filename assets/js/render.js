@@ -1,4 +1,4 @@
-import { DB, VEHICLE_TYPES, TIPS, PHRASES, RATES } from "./data.js";
+import { DB, VEHICLE_TYPES, TIPS, PHRASES, RATES, COUNTRY_CITY_GROUPS, VEHICLE_CURRENCIES, PHRASE_COUNTRIES, PHRASE_ITEMS, COUNTRY_TIPS } from "./data.js";
 import { esc, euro } from "./ui.js";
 
 export function routeStrip(route){
@@ -339,34 +339,68 @@ export function mapa(state){
   `;
 }
 
+
+function countryOptions(selected=""){
+  return Object.keys(COUNTRY_CITY_GROUPS).sort((a,b)=>a.localeCompare(b,"pt-BR")).map(c=>`<option value="${esc(c)}" ${c===selected?"selected":""}>${esc(c)}</option>`).join("");
+}
+function cityOptions(){
+  return Object.values(DB).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")).map(c=>`<option value="${esc(c.name)}" data-country="${esc(c.country)}"></option>`).join("");
+}
+function currencyOptions(selected="EUR"){
+  return VEHICLE_CURRENCIES.map(c=>`<option value="${c}" ${c===selected?"selected":""}>${c}</option>`).join("");
+}
+function vehicleCostEuro(v){
+  if(v.costEUR !== undefined && v.costEUR !== null && !Number.isNaN(Number(v.costEUR))) return Number(v.costEUR) || 0;
+  const amount = Number(v.costAmount || 0);
+  if(amount){
+    const cur = v.currency || "EUR";
+    const rate = Number(v.fxRate || RATES[cur] || 1);
+    return cur === "EUR" ? amount : amount / Math.max(rate,0.0001);
+  }
+  return parseBudgetValue(v.cost);
+}
+function vehicleDuration(v){
+  return v.duration || "sem duração";
+}
+function fmtDateTime(value){
+  if(!value) return "";
+  try{return new Date(value).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});}catch{return value;}
+}
+
 export function veiculos(state){
   const typeOptions = VEHICLE_TYPES.map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
   return `
     <div class="section-header">
       <div class="gold-line"></div>
       <h2>Veículos e deslocamentos</h2>
-      <p>A tela vem em branco. Você adiciona quantas opções quiser: trem, avião, ônibus, carro, ferry, metrô, caminhada, bike ou outro. Também dá para autopreencher opções com base no roteiro.</p>
+      <p>Agora cada deslocamento tem país/cidade de origem e destino, data/hora de saída e chegada, duração automática e custo em BRL/EUR com conversão para o orçamento.</p>
     </div>
     <div class="mini-actions" style="margin-bottom:1rem">
       <button class="primary-btn" id="autoVehicles">Autopreencher opções do roteiro</button>
       <button class="soft-btn" id="clearVehicles">Limpar veículos</button>
     </div>
     <div class="card">
-      <h3>Adicionar opção</h3>
+      <h3>Adicionar deslocamento</h3>
       <form id="vehicleForm" class="grid three">
         <div><label>Tipo</label><select id="vehType">${typeOptions}</select></div>
-        <div><label>Origem</label><input id="vehFrom" list="cityNames" placeholder="Lisboa"></div>
-        <div><label>Destino</label><input id="vehTo" list="cityNames" placeholder="Paris"></div>
-        <div><label>Duração</label><input id="vehDuration" placeholder="2h45"></div>
-        <div><label>Custo</label><input id="vehCost" placeholder="€40"></div>
-        <div><label>Fornecedor/link</label><input id="vehProvider" placeholder="Omio, FlixBus, SNCF..."></div>
-        <div style="grid-column:1/-1"><label>Observações</label><textarea id="vehNotes" placeholder="Horário, bagagem, reserva, opção A/B..."></textarea></div>
+        <div><label>País origem</label><select id="vehFromCountry">${countryOptions("Brasil")}</select></div>
+        <div><label>Cidade origem</label><input id="vehFromCity" list="cityNames" placeholder="São Paulo"></div>
+        <div><label>País destino</label><select id="vehToCountry">${countryOptions("Portugal")}</select></div>
+        <div><label>Cidade destino</label><input id="vehToCity" list="cityNames" placeholder="Lisboa"></div>
+        <div><label>Fornecedor/link</label><input id="vehProvider" placeholder="Omio, FlixBus, LATAM, SNCF..."></div>
+        <div><label>Saída</label><input id="vehDepartAt" type="datetime-local"></div>
+        <div><label>Chegada</label><input id="vehArriveAt" type="datetime-local"></div>
+        <div><label>Duração automática</label><input id="vehDurationAuto" readonly placeholder="preencha saída e chegada"></div>
+        <div><label>Valor</label><input id="vehCostAmount" type="number" step="0.01" min="0" placeholder="250"></div>
+        <div><label>Moeda</label><select id="vehCurrency">${currencyOptions("BRL")}</select></div>
+        <div><label>Câmbio para EUR</label><input id="vehFxRate" type="number" step="0.01" min="0.01" value="${RATES.BRL || 5.9}"></div>
+        <div style="grid-column:1/-1"><label>Observações</label><textarea id="vehNotes" placeholder="Bagagem, terminal, reserva, opção A/B..."></textarea></div>
         <button class="primary-btn">Adicionar veículo</button>
       </form>
-      <datalist id="cityNames">${Object.values(DB).map(c=>`<option value="${esc(c.name)}"></option>`).join("")}</datalist>
+      <datalist id="cityNames">${cityOptions()}</datalist>
     </div>
     <div class="grid two" style="margin-top:1rem">
-      ${state.vehicles.length ? state.vehicles.map(v=>vehicleCard(v)).join("") : `<div class="empty-state" style="grid-column:1/-1">Nenhum veículo adicionado ainda. Use o formulário ou o botão de autopreenchimento.</div>`}
+      ${(state.vehicles || []).length ? state.vehicles.map(v=>vehicleCard(v)).join("") : `<div class="empty-state" style="grid-column:1/-1">Nenhum veículo adicionado ainda. Use o formulário ou o botão de autopreenchimento.</div>`}
     </div>
   `;
 }
@@ -378,17 +412,31 @@ function vehicleLabel(type){
   return (VEHICLE_TYPES.find(x=>x[0]===type)?.[1] || "✨ Outro").replace(/^.+?\s/,"");
 }
 function vehicleCard(v){
+  const from = `${v.fromCountry ? v.fromCountry + " · " : ""}${v.fromCity || v.from || "-"}`;
+  const to = `${v.toCountry ? v.toCountry + " · " : ""}${v.toCity || v.to || "-"}`;
+  const amount = Number(v.costAmount || 0);
+  const cur = v.currency || "EUR";
+  const eur = vehicleCostEuro(v);
   return `<article class="vehicle-card">
     <div class="vehicle-head">
       <div>
-        <div class="vehicle-type">${vehicleIcon(v.type)} ${esc(v.from || "-")} → ${esc(v.to || "-")}</div>
-        <div class="vehicle-meta"><span class="pill">${esc(vehicleLabel(v.type))}</span> <span class="pill">${esc(v.duration || "sem duração")}</span> <span class="pill">${esc(v.cost || "sem custo")}</span></div>
+        <div class="vehicle-type">${vehicleIcon(v.type)} ${esc(from)} → ${esc(to)}</div>
+        <div class="vehicle-meta">
+          <span class="pill">${esc(vehicleLabel(v.type))}</span>
+          <span class="pill">${esc(vehicleDuration(v))}</span>
+          <span class="pill">${fmtDateTime(v.departAt)}${v.arriveAt ? " → " + fmtDateTime(v.arriveAt) : ""}</span>
+          <span class="pill">${amount ? `${cur} ${amount.toFixed(2)} ≈ ${euro(eur)}` : "sem custo"}</span>
+        </div>
       </div>
-      <button class="danger-btn" data-del-vehicle="${v.id}">Excluir do app</button>
+      <button class="danger-btn" data-del-vehicle="${v.id}">Excluir</button>
     </div>
     <div class="grid two">
       <div><label>Fornecedor/link</label><input data-vehicle-field="${v.id}:provider" value="${esc(v.provider || "")}"></div>
-      <div><label>Custo</label><input data-vehicle-field="${v.id}:cost" value="${esc(v.cost || "")}"></div>
+      <div><label>Valor</label><input type="number" step="0.01" data-vehicle-field="${v.id}:costAmount" value="${esc(v.costAmount || "")}"></div>
+      <div><label>Moeda</label><select data-vehicle-field="${v.id}:currency">${currencyOptions(cur)}</select></div>
+      <div><label>Câmbio para EUR</label><input type="number" step="0.01" data-vehicle-field="${v.id}:fxRate" value="${esc(v.fxRate || RATES[cur] || 1)}"></div>
+      <div><label>Saída</label><input type="datetime-local" data-vehicle-field="${v.id}:departAt" value="${esc(v.departAt || "")}"></div>
+      <div><label>Chegada</label><input type="datetime-local" data-vehicle-field="${v.id}:arriveAt" value="${esc(v.arriveAt || "")}"></div>
       <div style="grid-column:1/-1"><label>Observações editáveis</label><textarea data-vehicle-field="${v.id}:notes">${esc(v.notes || "")}</textarea></div>
     </div>
   </article>`;
@@ -544,7 +592,7 @@ function lodgingNightsForCity(state, cityName){
 function connectedBudget(state){
   const days = routeDaysCount(state);
 
-  const vehicles = (state.vehicles || []).reduce((sum,v) => sum + parseBudgetValue(v.cost), 0);
+  const vehicles = (state.vehicles || []).reduce((sum,v) => sum + vehicleCostEuro(v), 0);
 
   const lodgings = (state.lodgings || []).reduce((sum,l) => {
     const value = parseBudgetValue(l.cost);
@@ -564,7 +612,8 @@ function connectedBudget(state){
     return sum + Math.round(daysCity * Math.max(12, Math.min(30, c.cpd * 0.18)));
   }, 0);
 
-  const extras = (state.expenses || []).reduce((sum,e)=>sum+Number(e.amount||0),0);
+  const isAdminView = typeof document !== "undefined" && document.body.classList.contains("admin-mode");
+  const extras = isAdminView ? 0 : (state.expenses || []).reduce((sum,e)=>sum+Number(e.amount||0),0);
 
   return {days, vehicles, lodgings, food, tourism, extras, total:vehicles+lodgings+food+tourism+extras};
 }
@@ -576,7 +625,7 @@ export function orcamento(state){
     ["🏨 Hospedagens", "Soma das hospedagens cadastradas; valores por noite são multiplicados pelas noites da cidade", b.lodgings, "hospedagens"],
     ["🍽️ Comida", `Estimativa automática pelos ${b.days} dias do roteiro`, b.food, "roteiro"],
     ["🎟️ Turismo", "Estimativa automática de passeios, museus e atrações por cidade", b.tourism, "roteiro"],
-    ["✨ Extras manuais", "Gastos adicionados manualmente abaixo", b.extras, "extra"]
+    ...(b.extras || (typeof document !== "undefined" && !document.body.classList.contains("admin-mode")) ? [["✨ Extras manuais", "Gastos adicionados manualmente abaixo", b.extras, "extra"]] : [])
   ];
 
   return `
@@ -589,7 +638,7 @@ export function orcamento(state){
     <div class="budget-total">
       <span class="muted">Total geral estimado</span>
       <strong>${euro(b.total)}</strong>
-      <span class="muted">veículos + hospedagens + comida + turismo + extras</span>
+      <span class="muted">veículos + hospedagens + comida + turismo${(typeof document !== "undefined" && document.body.classList.contains("admin-mode")) ? "" : " + extras"}</span>
     </div>
 
     <div class="grid two">
@@ -613,13 +662,13 @@ export function orcamento(state){
           <button class="primary-btn" data-section-go="veiculos">Preencher veículos</button>
           <button class="primary-btn" data-section-go="hospedagens">Preencher hospedagens</button>
           <button class="soft-btn" data-section-go="roteiro">Ajustar roteiro</button>
-          <button class="soft-btn" id="autoBudget">Criar reserva extra sugerida</button>
-          <button class="danger-btn" id="clearBudget">Limpar extras manuais</button>
+          ${(typeof document !== "undefined" && document.body.classList.contains("admin-mode")) ? "" : `<button class="soft-btn" id="autoBudget">Criar reserva extra sugerida</button>
+          <button class="danger-btn" id="clearBudget">Limpar extras manuais</button>`}
         </div>
       </div>
     </div>
 
-    <div class="card" style="margin-top:1rem">
+    <div class="card user-extra-card" style="margin-top:1rem">
       <h3>Adicionar gasto extra manual</h3>
       <form id="expenseForm" class="grid three">
         <div><label>Categoria</label><input id="expenseCat" placeholder="Emergência"></div>
@@ -629,7 +678,7 @@ export function orcamento(state){
       </form>
     </div>
 
-    <div class="card" style="margin-top:1rem">
+    <div class="card user-extra-card" style="margin-top:1rem">
       <h3>Extras manuais</h3>
       <table class="table">
         <thead><tr><th>Categoria</th><th>Descrição</th><th>Valor</th><th></th></tr></thead>
@@ -639,9 +688,28 @@ export function orcamento(state){
   `;
 }
 
-export function dicas(){
-  return `<div class="section-header"><div class="gold-line"></div><h2>Dicas rápidas</h2><p>Boas práticas para economizar e viajar melhor.</p></div><div class="grid three">${TIPS.map(t=>`<div class="card"><h3>${t[0]} ${esc(t[1])}</h3><p class="muted">${esc(t[2])}</p></div>`).join("")}</div>`;
+export function dicas(state){
+  const country = state.settings.tipCountry || "all";
+  const type = state.settings.tipType || "all";
+  const search = (state.settings.tipSearch || "").toLowerCase();
+  const countries = ["all", ...new Set(COUNTRY_TIPS.map(t=>t.country))];
+  const types = ["all", ...new Set(COUNTRY_TIPS.map(t=>t.type))];
+  const tips = COUNTRY_TIPS.filter(t =>
+    (country === "all" || t.country === country) &&
+    (type === "all" || t.type === type) &&
+    (!search || `${t.country} ${t.type} ${t.title} ${t.text}`.toLowerCase().includes(search))
+  );
+  return `<div class="section-header"><div class="gold-line"></div><h2>Dicas, costumes e curiosidades</h2><p>Dicas separadas por país e tipo: transporte, comida, orçamento, comportamento, turismo e emergência.</p></div>
+  <div class="card" style="margin-bottom:1rem">
+    <div class="grid three">
+      <div><label>País</label><select id="tipCountry">${countries.map(c=>`<option value="${esc(c)}" ${c===country?"selected":""}>${c==="all"?"Todos":esc(c)}</option>`).join("")}</select></div>
+      <div><label>Tipo</label><select id="tipType">${types.map(t=>`<option value="${esc(t)}" ${t===type?"selected":""}>${t==="all"?"Todos":esc(t)}</option>`).join("")}</select></div>
+      <div><label>Pesquisar</label><input id="tipSearch" value="${esc(state.settings.tipSearch || "")}" placeholder="ex.: Suíça, comida, direita..."></div>
+    </div>
+  </div>
+  <div class="grid three">${tips.map(t=>`<div class="card"><div class="chip-country">${esc(t.country)} · ${esc(t.type)}</div><h3>${esc(t.title)}</h3><p class="muted">${esc(t.text)}</p></div>`).join("") || `<div class="empty-state" style="grid-column:1/-1">Nenhuma dica encontrada.</div>`}</div>`;
 }
+
 
 export function checklist(state){
   const grouped = {};
@@ -667,10 +735,27 @@ export function moedas(state){
 }
 
 export function frases(state){
-  const lang = state.settings.phraseLang || "EN";
-  const idx = {EN:2,FR:3,ES:4,IT:5,DE:6}[lang] || 2;
-  return `<div class="section-header"><div class="gold-line"></div><h2>Frases úteis</h2><p>Toque em uma frase para copiar.</p></div><div class="filter-row" style="border:0;background:transparent;padding:0;margin-bottom:1rem">${["EN","FR","ES","IT","DE"].map(l=>`<button class="filter-btn ${l===lang?"active":""}" data-lang="${l}">${l}</button>`).join("")}</div><div class="phrases-grid">${PHRASES.map(p=>`<div class="phrase-card" data-copy="${esc(p[idx])}"><div><div class="chip-country">${esc(p[0])}</div><strong>${esc(p[1])}</strong><div style="color:var(--gold);font-style:italic">${esc(p[idx])}</div></div></div>`).join("")}</div>`;
+  const countryId = state.settings.phraseCountry || "reino_unido";
+  const country = PHRASE_COUNTRIES.find(c=>c.id===countryId) || PHRASE_COUNTRIES[0];
+  const lang = country.lang || state.settings.phraseLang || "EN";
+  const category = state.settings.phraseCategory || "all";
+  const search = (state.settings.phraseSearch || "").toLowerCase();
+  const cats = ["all", ...new Set(PHRASE_ITEMS.map(p=>p.cat))];
+  const items = PHRASE_ITEMS.filter(p =>
+    (category === "all" || p.cat === category) &&
+    (!search || `${p.cat} ${p.pt} ${p[lang] || ""}`.toLowerCase().includes(search))
+  );
+  return `<div class="section-header"><div class="gold-line"></div><h2>Frases úteis</h2><p>Mais de 50 frases com filtro por país, tipo e pesquisa. Toque para copiar.</p></div>
+  <div class="card" style="margin-bottom:1rem">
+    <div class="grid three">
+      <div><label>País / idioma</label><select id="phraseCountry">${PHRASE_COUNTRIES.map(c=>`<option value="${c.id}" ${c.id===countryId?"selected":""}>${c.flag} ${esc(c.label)}</option>`).join("")}</select></div>
+      <div><label>Tipo</label><select id="phraseCategory">${cats.map(c=>`<option value="${esc(c)}" ${c===category?"selected":""}>${c==="all"?"Todos":esc(c)}</option>`).join("")}</select></div>
+      <div><label>Pesquisar</label><input id="phraseSearch" value="${esc(state.settings.phraseSearch || "")}" placeholder="comida, estação, ajuda..."></div>
+    </div>
+  </div>
+  <div class="phrases-grid">${items.map(p=>`<div class="phrase-card" data-copy="${esc(p[lang] || p.EN || p.pt)}"><div><div class="chip-country">${country.flag} ${esc(p.cat)}</div><strong>${esc(p.pt)}</strong><div style="color:var(--gold);font-style:italic">${esc(p[lang] || p.EN || p.pt)}</div></div></div>`).join("")}</div>`;
 }
+
 
 export function diario(state){
   return `<div class="section-header"><div class="gold-line"></div><h2>Diário</h2><p>Registre memórias da viagem.</p></div><div class="card"><form id="diaryForm" class="diary-form"><div class="grid two"><div><label>Cidade</label><input id="diaryCity" placeholder="Paris"></div><div><label>Humor</label><select id="diaryMood"><option>😍 Incrível</option><option>🙂 Bom</option><option>😐 Normal</option><option>😴 Cansativo</option></select></div></div><div><label>Título</label><input id="diaryTitle" required placeholder="Um dia memorável"></div><div><label>Texto</label><textarea id="diaryText" required placeholder="Conte como foi..."></textarea></div><button class="primary-btn">Salvar memória</button></form></div><div style="margin-top:1rem">${state.diary.map(d=>`<article class="diary-entry"><div class="route-city-meta">${esc(d.city)} · ${esc(d.mood)} · ${new Date(d.createdAt).toLocaleDateString("pt-BR")}</div><h4>${esc(d.title)}</h4><p>${esc(d.text)}</p><button class="danger-btn" data-del-diary="${d.id}" style="margin-top:.7rem">Excluir do app</button></article>`).join("") || `<div class="empty-state">Nenhuma memória ainda.</div>`}</div>`;
